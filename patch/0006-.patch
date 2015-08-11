@@ -1,0 +1,132 @@
+From a0bb3e043a2bb861c1325f622b66a72d3cd2658e Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 23 Oct 2014 09:31:39 -0400
+Subject: [PATCH 06/26] =?UTF-8?q?=E7=BB=93=E6=9E=84=E4=BD=93=E5=8F=82?=
+ =?UTF-8?q?=E6=95=B0=E8=AE=BE=E7=BD=AE=E9=94=99=E8=AF=AF=EF=BC=8C=E5=B0=86?=
+ =?UTF-8?q?=E5=80=BC=E5=8F=82=E6=95=B0=E5=B1=9E=E6=80=A7=E8=AE=BE=E7=BD=AE?=
+ =?UTF-8?q?=E5=88=B0=E5=8F=96=E5=80=BC=E5=8C=BA=E9=97=B4=E4=B8=8A=E4=BA=86?=
+ =?UTF-8?q?=EF=BC=8C=E4=BD=86=E5=A5=BD=E5=83=8F=E5=B9=B6=E4=B8=8D=E5=BD=B1?=
+ =?UTF-8?q?=E5=93=8D=E5=8F=82=E6=95=B0=E8=A7=A3=E6=9E=90=E3=80=82?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/pppd/pppd/ccp.c | 46 +++++++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 21 deletions(-)
+
+diff --git a/release/src/router/pppd/pppd/ccp.c b/release/src/router/pppd/pppd/ccp.c
+index 52617f7..3fe25b0 100644
+--- a/release/src/router/pppd/pppd/ccp.c
++++ b/release/src/router/pppd/pppd/ccp.c
+@@ -114,10 +114,11 @@ static option_t ccp_option_list[] = {
+ 
+ #ifdef MPPE
+     { "mppc", o_bool, &ccp_wantoptions[0].mppc,
+-      "request MPPC compression", 1, &ccp_allowoptions[0].mppc, OPT_PRIO },
++      "request MPPC compression", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppc },
+     { "+mppc", o_bool, &ccp_wantoptions[0].mppc,
+-      "request MPPC compression", 1, &ccp_allowoptions[0].mppc,
+-      OPT_ALIAS | OPT_PRIO },
++      "request MPPC compression", OPT_ALIAS | OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppc },
+     { "nomppc", o_bool, &ccp_wantoptions[0].mppc,
+       "don't allow MPPC compression", OPT_PRIOSUB | OPT_A2CLR,
+       &ccp_allowoptions[0].mppc },
+@@ -126,10 +127,11 @@ static option_t ccp_option_list[] = {
+       &ccp_allowoptions[0].mppc },
+ 
+     { "require-mppe", o_bool, &ccp_wantoptions[0].mppe,
+-      "require MPPE encryption", 1, &ccp_allowoptions[0].mppe, OPT_PRIO },
++      "require MPPE encryption", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe },
+     { "+mppe", o_bool, &ccp_wantoptions[0].mppe,
+-      "require MPPE encryption", 1, &ccp_allowoptions[0].mppe,
+-      OPT_ALIAS | OPT_PRIO },
++      "require MPPE encryption", OPT_ALIAS | OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe },
+     { "nomppe", o_bool, &ccp_wantoptions[0].mppe,
+       "don't allow MPPE encryption", OPT_PRIOSUB | OPT_A2CLR,
+       &ccp_allowoptions[0].mppe },
+@@ -138,11 +140,11 @@ static option_t ccp_option_list[] = {
+       &ccp_allowoptions[0].mppe },
+ 
+     { "require-mppe-40", o_bool, &ccp_wantoptions[0].mppe_40,
+-      "require MPPE 40-bit encryption", 1, &ccp_allowoptions[0].mppe_40,
+-      OPT_PRIO },
++      "require MPPE 40-bit encryption", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_40, },
+     { "+mppe-40", o_bool, &ccp_wantoptions[0].mppe_40,
+-      "require MPPE 40-bit encryption", 1, &ccp_allowoptions[0].mppe_40,
+-      OPT_ALIAS | OPT_PRIO },
++      "require MPPE 40-bit encryption", OPT_ALIAS | OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_40, },
+     { "nomppe-40", o_bool, &ccp_wantoptions[0].mppe_40,
+       "don't allow MPPE 40-bit encryption", OPT_PRIOSUB | OPT_A2CLR,
+       &ccp_allowoptions[0].mppe_40 },
+@@ -151,11 +153,11 @@ static option_t ccp_option_list[] = {
+       &ccp_allowoptions[0].mppe_40 },
+ 
+     { "require-mppe-56", o_bool, &ccp_wantoptions[0].mppe_56,
+-      "require MPPE 56-bit encryption", 1, &ccp_allowoptions[0].mppe_56,
+-      OPT_PRIO },
++      "require MPPE 56-bit encryption", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_56 },
+     { "+mppe-56", o_bool, &ccp_wantoptions[0].mppe_56,
+-      "require MPPE 56-bit encryption", 1, &ccp_allowoptions[0].mppe_56,
+-      OPT_ALIAS | OPT_PRIO },
++      "require MPPE 56-bit encryption", OPT_ALIAS | OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_56 },
+     { "nomppe-56", o_bool, &ccp_wantoptions[0].mppe_56,
+       "don't allow MPPE 56-bit encryption", OPT_PRIOSUB | OPT_A2CLR,
+       &ccp_allowoptions[0].mppe_56 },
+@@ -164,11 +166,11 @@ static option_t ccp_option_list[] = {
+       &ccp_allowoptions[0].mppe_56 },
+ 
+     { "require-mppe-128", o_bool, &ccp_wantoptions[0].mppe_128,
+-      "require MPPE 128-bit encryption", 1, &ccp_allowoptions[0].mppe_128,
+-      OPT_PRIO },
++      "require MPPE 128-bit encryption", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_128 },
+     { "+mppe-128", o_bool, &ccp_wantoptions[0].mppe_128,
+-      "require MPPE 128-bit encryption", 1, &ccp_allowoptions[0].mppe_128,
+-      OPT_ALIAS | OPT_PRIO },
++      "require MPPE 128-bit encryption", OPT_ALIAS | OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_128 },
+     { "nomppe-128", o_bool, &ccp_wantoptions[0].mppe_128,
+       "don't allow MPPE 128-bit encryption", OPT_PRIOSUB | OPT_A2CLR,
+       &ccp_allowoptions[0].mppe_128 },
+@@ -177,10 +179,10 @@ static option_t ccp_option_list[] = {
+       &ccp_allowoptions[0].mppe_128 },
+ 
+     { "nomppe-stateful", o_bool, &ccp_wantoptions[0].mppe_stateless,
+-      "disallow MPPE stateful mode", 1, &ccp_allowoptions[0].mppe_stateless,
+-      OPT_PRIO },
++      "disallow MPPE stateful mode", OPT_PRIO | 1, 
++      &ccp_allowoptions[0].mppe_stateless },
+     { "mppe-stateful", o_bool, &ccp_wantoptions[0].mppe_stateless,
+-      "allow MPPE stateful mode", OPT_PRIOSUB | OPT_A2CLR,
++      "allow MPPE stateful mode", OPT_PRIO | OPT_A2CLR,
+       &ccp_allowoptions[0].mppe_stateless },
+ #endif /* MPPE */
+ 
+@@ -690,6 +692,7 @@ ccp_resetci(f)
+ 		error("MPPE required, but kernel has no support.");
+ 		lcp_close(f->unit, "MPPE required but not available");
+ 	    }
++	    notice("stateless mppe %d, not set mppe level, so set mppe to 0", go->mppe_stateless);
+ 	    go->mppe = go->mppe_stateless = 0;
+ 	} else {
+ 	    /* MPPE is not compatible with other compression types */
+@@ -797,6 +800,7 @@ ccp_addci(f, p, lenp)
+ 	p[0] = CI_MPPE;
+ 	p[1] = CILEN_MPPE;
+ 	p[2] = (go->mppe_stateless ? MPPE_STATELESS : 0);
++	notice("stateless mppe %d, set packet", go->mppe_stateless);
+ 	p[3] = 0;
+ 	p[4] = 0;
+ 	p[5] = (go->mppe_40 ? MPPE_40BIT : 0) | (go->mppe_56 ? MPPE_56BIT : 0) |
+-- 
+2.1.2
+

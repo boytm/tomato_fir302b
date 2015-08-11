@@ -1,0 +1,186 @@
+From 3240552d9c90dfdef4cfd4ba0bdec30d8f1b3910 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 15 Jan 2015 16:53:39 +0800
+Subject: [PATCH 22/26] =?UTF-8?q?=E6=96=B0=E9=97=AE=E9=A2=98:=20=E8=AE=BF?=
+ =?UTF-8?q?=E9=97=AE=20Google=20DNS=208.8.8.8=20=E4=B8=A2=E5=8C=85?=
+ =?UTF-8?q?=E7=8E=87=E5=9C=A850%=E4=BB=A5=E4=B8=8A=EF=BC=9B=E4=B8=94?=
+ =?UTF-8?q?=E8=BF=94=E5=9B=9E=E7=9A=84=E6=81=B6=E6=84=8FIP=E4=B8=8D?=
+ =?UTF-8?q?=E5=86=8D=E5=B1=80=E9=99=90=E4=BA=8E=E4=BB=A5=E5=89=8D=E7=9A=84?=
+ =?UTF-8?q?=E5=87=A0=E5=8D=81=E4=B8=AA=E5=9B=BA=E5=AE=9AIP=E3=80=82?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+故改为将常用域名发给 OpenDNS 443 5353 端口解析，或者让 DNS 走 VPN 通道防止劫持和丢包。好处是 DNS 走 VPN 可以更好的与 CDN 配合；但坏处是必须手动维护域名列表，且过大的域名列表导致 dnsmasq 启动较慢。
+也可以考虑另一种方案：国内前500网站通过114解析，其它域名都通过 OpenDNS 解析。这样可以畅游国外，而只让排名靠后(通常较少访问)的国内网站CDN调度出问题。
+---
+ release/src/router/rc/services.c                   |  5 ++-
+ .../src/router/rom/rom/etc/dnsmasq_gfwlist.conf    | 52 ++++++++++++++++++++++
+ release/src/router/rom/rom/etc/route_us.sh         | 14 +++++-
+ release/src/router/rom/rom/etc/spurious_ips.conf   | 38 ----------------
+ 4 files changed, 67 insertions(+), 42 deletions(-)
+ create mode 100644 release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+
+diff --git a/release/src/router/rc/services.c b/release/src/router/rc/services.c
+index 40d3cf1..a20aaf9 100644
+--- a/release/src/router/rc/services.c
++++ b/release/src/router/rc/services.c
+@@ -155,8 +155,9 @@ void start_dnsmasq()
+ 
+ //#ifdef TCONFIG_GFW
+ 	fprintf(f,
+-		"spurious-ip-file=/etc/spurious_ips.conf\n"
+-		"all-servers\n");
++		"conf-file=/etc/dnsmasq_gfwlist.conf\n"
++		/*"spurious-ip-file=/etc/spurious_ips.conf\n"
++		"all-servers\n"*/);
+ //#endif
+ 
+ 	for (n = 0 ; n < dns->count; ++n) {
+diff --git a/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+new file mode 100644
+index 0000000..e42c353
+--- /dev/null
++++ b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+@@ -0,0 +1,52 @@
++#Google and Youtube
++server=/google.com/208.67.222.222#443
++server=/google.com.hk/208.67.222.222#443
++server=/gstatic.com/208.67.222.222#443
++server=/ggpht.com/208.67.222.222#443
++server=/googleusercontent.com/208.67.222.222#443
++server=/appspot.com/208.67.222.222#443
++server=/googlecode.com/208.67.222.222#443
++server=/googleapis.com/208.67.222.222#443
++server=/gmail.com/208.67.222.222#443
++server=/google-analytics.com/208.67.222.222#443
++server=/youtube.com/208.67.222.222#443
++server=/googlevideo.com/208.67.222.222#443
++server=/youtube-nocookie.com/208.67.222.222#443
++server=/ytimg.com/208.67.222.222#443
++server=/blogspot.com/208.67.222.222#443
++server=/blogger.com/208.67.222.222#443
++
++#FaceBook
++server=/facebook.com/208.67.222.222#443
++server=/thefacebook.com/208.67.222.222#443
++server=/facebook.net/208.67.222.222#443
++server=/fbcdn.net/208.67.222.222#443
++server=/akamaihd.net/208.67.222.222#443
++server=/instagram.com/208.67.222.222#443
++
++#Twitter
++server=/twitter.com/208.67.222.222#443
++server=/t.co/208.67.222.222#443
++server=/bitly.com/208.67.222.222#443
++server=/twimg.com/208.67.222.222#443
++server=/tinypic.com/208.67.222.222#443
++server=/yfrog.com/208.67.222.222#443
++
++#Dropbox
++server=/dropbox.com/208.67.222.222#443
++
++#1024
++server=/t66y.com/208.67.222.222#443
++
++#shadowsocks fqrouter
++server=/shadowsocks.org/208.67.222.222#443
++server=/fqrouter.com/208.67.222.222#443
++
++#btdigg
++server=/btdigg.org/208.67.222.222#443
++
++#sf.net
++server=/sourceforge.net/208.67.222.222#443
++
++#feedly
++server=/feedly.com/208.67.222.222#443
+diff --git a/release/src/router/rom/rom/etc/route_us.sh b/release/src/router/rom/rom/etc/route_us.sh
+index 135b99d..b499801 100755
+--- a/release/src/router/rom/rom/etc/route_us.sh
++++ b/release/src/router/rom/rom/etc/route_us.sh
+@@ -9,11 +9,14 @@ lan=`nvram get lan_ifname`
+ modprobe ipt_set
+ table=" table 8 "
+ 
++# 993 Gmail IMAP port
++# 465 Gmail SMTP port
++
+ case $action in
+ add)
+ 	ip route replace $table default dev $vpn
+ 	#iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff 
+-	iptables -t mangle -A PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff
++	iptables -t mangle -A PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443,993 -j MARK --set-mark 0xffff
+ 	ip rule add fwmark 0xffff $table priority 1
+ 
+         echo 0 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
+@@ -22,7 +25,7 @@ del)
+         echo 1 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
+ 
+ 	ip rule del fwmark 0xffff $table priority 1
+-	iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff 
++	iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443,993 -j MARK --set-mark 0xffff 
+ 	ip route replace $table default dev $net
+ ;;
+ *)
+@@ -31,6 +34,13 @@ del)
+ ;;
+ esac
+ 
++# public dns server
++ip route $action 8.8.8.8/32 dev $vpn
++ip route $action 8.8.4.4/32 dev $vpn
++ip route $action 208.67.220.220/32 dev $vpn
++ip route $action 208.67.222.222/32 dev $vpn
++
++# route table for marked packet
+ #ip route replace default dev $vpn
+ ip route $action $table 0.0.0.0/7 dev $net
+ ip route $action $table 14.0.0.0/8 dev $net
+diff --git a/release/src/router/rom/rom/etc/spurious_ips.conf b/release/src/router/rom/rom/etc/spurious_ips.conf
+index c711685..e69de29 100644
+--- a/release/src/router/rom/rom/etc/spurious_ips.conf
++++ b/release/src/router/rom/rom/etc/spurious_ips.conf
+@@ -1,38 +0,0 @@
+-74.125.127.102
+-74.125.155.102
+-74.125.39.102
+-74.125.39.113
+-209.85.229.138
+-128.121.126.139
+-159.106.121.75
+-169.132.13.103
+-192.67.198.6
+-202.106.1.2
+-202.181.7.85
+-203.161.230.171
+-203.98.7.65
+-207.12.88.98
+-208.56.31.43
+-209.145.54.50
+-209.220.30.174
+-209.36.73.33
+-211.94.66.147
+-213.169.251.35
+-216.221.188.182
+-216.234.179.13
+-243.185.187.39
+-37.61.54.158
+-4.36.66.178
+-46.82.174.68
+-59.24.3.173
+-64.33.88.161
+-64.33.99.47
+-64.66.163.251
+-65.104.202.252
+-65.160.219.113
+-66.45.252.237
+-72.14.205.104
+-72.14.205.99
+-78.16.49.15
+-8.7.198.45
+-93.46.8.89
+-- 
+2.1.2
+

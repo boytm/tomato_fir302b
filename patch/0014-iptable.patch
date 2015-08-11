@@ -1,0 +1,65 @@
+From 24fb14eabdee5a30d5f48bcb02ef83aaaae846b0 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Mon, 1 Dec 2014 10:57:33 +0800
+Subject: [PATCH 14/26] =?UTF-8?q?iptable=20=E6=93=8D=E4=BD=9C=E5=A4=B1?=
+ =?UTF-8?q?=E8=B4=A5=E6=97=B6=E7=BB=99=E5=87=BA=E6=8F=90=E7=A4=BA?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/iptables/libiptc/libiptc.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/release/src/router/iptables/libiptc/libiptc.c b/release/src/router/iptables/libiptc/libiptc.c
+index b4e5483..bf3d9b0 100644
+--- a/release/src/router/iptables/libiptc/libiptc.c
++++ b/release/src/router/iptables/libiptc/libiptc.c
+@@ -2091,6 +2091,7 @@ TC_COMMIT(TC_HANDLE_T *handle)
+ 	ret = iptcc_compile_table(*handle, repl);
+ 	if (ret < 0) {
+ 		errno = ret;
++		DEBUGP("iptcc_compile_table failed\n");
+ 		goto out_free_newcounters;
+ 	}
+ 
+@@ -2106,11 +2107,16 @@ TC_COMMIT(TC_HANDLE_T *handle)
+ 	}
+ #endif
+ 
+-	ret = setsockopt(sockfd, TC_IPPROTO, SO_SET_REPLACE, repl,
+-			 sizeof(*repl) + repl->size);
+-	if (ret < 0)
+-		goto out_free_newcounters;
++	do {
++	    ret = setsockopt(sockfd, TC_IPPROTO, SO_SET_REPLACE, repl,
++		    sizeof(*repl) + repl->size);
++	} while ( ret < 0 && ( errno == EAGAIN || errno == EINPROGRESS));
++	if (ret < 0) {
++	    perror("setsockopt SO_SET_REPLACE failed ");
++	    goto out_free_newcounters;
++	}
+ 
++	DEBUGP("Put counters back. \n");
+ 	/* Put counters back. */
+ 	strcpy(newcounters->name, (*handle)->info.name);
+ 	newcounters->num_counters = new_number;
+@@ -2198,10 +2204,14 @@ TC_COMMIT(TC_HANDLE_T *handle)
+ 	}
+ #endif
+ 
++do {
+ 	ret = setsockopt(sockfd, TC_IPPROTO, SO_SET_ADD_COUNTERS,
+ 			 newcounters, counterlen);
+-	if (ret < 0)
++} while ( ret < 0 && ( errno == EAGAIN || errno == EINPROGRESS));
++	if (ret < 0) {
++		perror("SO_SET_ADD_COUNTERS failed");
+ 		goto out_free_newcounters;
++        }
+ 
+ 	free(repl->counters);
+ 	free(repl);
+-- 
+2.1.2
+

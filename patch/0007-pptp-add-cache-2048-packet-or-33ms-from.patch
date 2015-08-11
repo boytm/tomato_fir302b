@@ -1,0 +1,181 @@
+From 14596d40685d537df1065a49ef4529085662a086 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Fri, 10 Oct 2014 03:55:32 -0400
+Subject: [PATCH 07/26] pptp add cache(2048 packet or 33ms), from
+ https://github.com/hackgfw/openwrt-gfw/blob/master/kernel_pptp_patch/989-pptp_add_seq_window.patch
+
+---
+ release/src-rt/linux/linux-2.6/drivers/net/pptp.c  | 77 +++++++++++++++++++---
+ .../linux/linux-2.6/include/linux/if_pppox.h       |  2 +
+ 2 files changed, 70 insertions(+), 9 deletions(-)
+
+diff --git a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+index ee93851..aa5b456 100644
+--- a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
++++ b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+@@ -12,6 +12,7 @@
+ 
+ #include <linux/string.h>
+ #include <linux/module.h>
++#include <linux/jiffies.h>
+ #include <linux/kernel.h>
+ #include <linux/slab.h>
+ #include <linux/vmalloc.h>
+@@ -210,7 +211,8 @@ static struct ppp_channel_ops pptp_chan_ops= {
+ };
+ 
+ 
+-#define MISSING_WINDOW 20
++#define MISSING_WINDOW	2048	/* must be 2^N */
++#define WINDOWS_TIMEOUT	3	/* in 1/N seconds */
+ #define WRAPPED( curseq, lastseq) \
+     ((((curseq) & 0xffffff00) == 0) && \
+      (((lastseq) & 0xffffff00 ) == 0xffffff00))
+@@ -244,6 +246,42 @@ struct pptp_gre_header {
+ } __attribute__ ((__packed__));
+ #define PPTP_HEADER_OVERHEAD (2+sizeof(struct pptp_gre_header))
+ 
++struct pptp_meta {
++	u32 seq;
++	u32 timestamp;
++};
++
++static inline struct pptp_meta *get_pptp_meta(struct sk_buff *skb)
++{
++	return (struct pptp_meta *)skb->cb;
++}
++
++static inline void proc_queue(struct pppox_sock *po)
++{
++	struct pptp_opt *opt = &po->proto.pptp;
++	struct pptp_meta *meta;
++	u32 nowtime=jiffies;
++	u32 i;
++	for (i=opt->seq_recv+1;i!=opt->seq_ahead+1;i++)
++	{
++		if (opt->skb_buff[i % MISSING_WINDOW] == NULL) continue;
++		meta=get_pptp_meta(opt->skb_buff[i % MISSING_WINDOW]);
++		/* check timeout */
++		if (nowtime - meta->timestamp < HZ / WINDOWS_TIMEOUT) break;
++		opt->seq_recv=i;
++		ppp_input(&po->chan, opt->skb_buff[i % MISSING_WINDOW]);
++		opt->skb_buff[i % MISSING_WINDOW] = NULL;
++	}
++	for (i=opt->seq_recv+1;i!=opt->seq_ahead+1;i++)
++	{
++		if (opt->skb_buff[i % MISSING_WINDOW] == NULL) break;
++		opt->seq_recv=i;
++		ppp_input(&po->chan, opt->skb_buff[i % MISSING_WINDOW]);
++		opt->skb_buff[i % MISSING_WINDOW] = NULL;
++	}
++}
++
++
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+ static struct pppox_sock * lookup_chan(u16 call_id, u32 s_addr)
+ #else
+@@ -569,7 +607,9 @@ static int pptp_rcv_core(struct sock *sk,struct sk_buff *skb)
+ {
+ 	struct pppox_sock *po = pppox_sk(sk);
+ 	struct pptp_opt *opt=&po->proto.pptp;
+-	int headersize,payload_len,seq;
++	struct pptp_meta *meta=get_pptp_meta(skb);
++	int headersize, payload_len;
++	u32 seq, seqdiff;
+ 	u8 *payload;
+ 	struct pptp_gre_header *header;
+ 
+@@ -615,11 +655,13 @@ static int pptp_rcv_core(struct sock *sk,struct sk_buff *skb)
+ 	}
+ 
+ 	payload=skb->data+headersize;
+-	/* check for expected sequence number */
+-	if ( seq < opt->seq_recv + 1 || WRAPPED(opt->seq_recv, seq) ){
+-		if ( (payload[0] == PPP_ALLSTATIONS) && (payload[1] == PPP_UI) &&
+-		     (PPP_PROTOCOL(payload) == PPP_LCP) &&
+-		     ((payload[4] == PPP_LCP_ECHOREQ) || (payload[4] == PPP_LCP_ECHOREP)) ){
++	seqdiff=opt->seq_ahead - seq;
++	/* check if sequence number too old */
++	if (seqdiff >= opt->seq_ahead - opt->seq_recv && seqdiff < 0x80000000) {
++	}
++	/* check if sequence number in window */
++	else if (seqdiff < MISSING_WINDOW) {
++		if (opt->skb_buff[seq%MISSING_WINDOW] == NULL) {
+ #ifdef DEBUG
+ 			if ( log_level >= 1)
+ 				printk(KERN_INFO"PPTP[%i]: allowing old LCP Echo packet %d (expecting %d)\n", opt->src_addr.call_id,
+@@ -632,8 +674,17 @@ static int pptp_rcv_core(struct sock *sk,struct sk_buff *skb)
+ 			printk(KERN_INFO"PPTP[%i]: discarding duplicate or old packet %d (expecting %d)\n",opt->src_addr.call_id,
+ 							seq, opt->seq_recv + 1);
+ #endif
++ 	/* update ahead */
+ 	}else{
+-		opt->seq_recv = seq;
++		for (;opt->seq_ahead != seq;) {
++			opt->seq_ahead++;
++			if (opt->seq_ahead - opt->seq_recv == MISSING_WINDOW + 1) {
++				opt->seq_recv++;
++				/* not enough buff, call back anyway */
++				if (opt->skb_buff[opt->seq_recv%MISSING_WINDOW]) ppp_input(&po->chan, opt->skb_buff[opt->seq_recv%MISSING_WINDOW]);
++				opt->skb_buff[opt->seq_recv%MISSING_WINDOW] = NULL;
++			}
++		}
+ allow_packet:
+ #ifdef DEBUG
+ 		if ( log_level >= 3 && opt->seq_sent<=log_packets)
+@@ -646,6 +697,8 @@ allow_packet:
+ 				*(payload +5));
+ #endif
+ 
++		meta->seq=seq;
++		meta->timestamp=jiffies;
+ 		skb_pull(skb,headersize);
+ 
+ 		if (payload[0] == PPP_ALLSTATIONS && payload[1] == PPP_UI){
+@@ -664,7 +717,8 @@ allow_packet:
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,21)
+ 		skb_set_network_header(skb,skb->head-skb->data);
+ #endif
+-		ppp_input(&po->chan,skb);
++		opt->skb_buff[seq%MISSING_WINDOW] = skb;
++		proc_queue(po);
+ 
+ 		return NET_RX_SUCCESS;
+ 	}
+@@ -1051,6 +1105,7 @@ out:
+ #else
+ static void pptp_sock_destruct(struct sock *sk)
+ {
++	if (pppox_sk(sk)->proto.pptp.skb_buff) kfree(pppox_sk(sk)->proto.pptp.skb_buff);
+     if (!(SK_STATE(sk) & PPPOX_DEAD)){
+ 	    del_chan(pppox_sk(sk));
+ 	    pppox_unbind_sock(sk);
+@@ -1094,8 +1149,12 @@ static int pptp_create(struct net *net, struct socket *sock)
+ #endif
+ 	opt=&po->proto.pptp;
+ 
++	opt->skb_buff=(struct sk_buff **)kmalloc(sizeof(struct sk_buff *)*MISSING_WINDOW,GFP_KERNEL);
++	if (opt->skb_buff == NULL) goto out;
++	memset(opt->skb_buff,0,sizeof(struct sk_buff *)*MISSING_WINDOW);
+ 	opt->seq_sent = 0; opt->seq_recv = 0xffffffff;
+ 	opt->ack_recv = 0; opt->ack_sent = 0xffffffff;
++	opt->seq_ahead = 0xffffffff;
+ 
+ 	error = 0;
+ out:
+diff --git a/release/src-rt/linux/linux-2.6/include/linux/if_pppox.h b/release/src-rt/linux/linux-2.6/include/linux/if_pppox.h
+index f92682c..5b4a2a9 100644
+--- a/release/src-rt/linux/linux-2.6/include/linux/if_pppox.h
++++ b/release/src-rt/linux/linux-2.6/include/linux/if_pppox.h
+@@ -179,6 +179,8 @@ struct pptp_opt {
+ 	__u32 ack_sent, ack_recv;
+ 	__u32 seq_sent, seq_recv;
+ 	int ppp_flags;
++	struct sk_buff **skb_buff;
++	u32 seq_ahead;
+ };
+ 
+ #define PPTP_FLAG_PAUSE 0
+-- 
+2.1.2
+

@@ -1,0 +1,69 @@
+From 5ce4a71cbd413e487683d986b1026d912fd0d525 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Mon, 5 Jan 2015 14:06:29 +0800
+Subject: [PATCH 20/26] =?UTF-8?q?Web=20=E9=A1=B5=E9=9D=A2=20PPTP=20Client?=
+ =?UTF-8?q?=20Configuration=20=E4=BF=AE=E6=94=B9=20Redirect=20Internet=20t?=
+ =?UTF-8?q?raffic=20=E4=B8=BA=E4=B8=8B=E6=8B=89=E6=A1=86=EF=BC=8C=E5=B9=B6?=
+ =?UTF-8?q?=E5=A2=9E=E5=8A=A0=E9=80=89=E9=A1=B9=EF=BC=9A=E6=98=AF=E5=90=A6?=
+ =?UTF-8?q?=E9=87=8D=E5=AE=9A=E5=90=91=20US=20=E6=B5=81=E9=87=8F?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/rc/vpn/ip-down   | 6 ++++--
+ release/src/router/rc/vpn/ip-up     | 6 ++++--
+ release/src/router/www/vpn-pptp.asp | 3 ++-
+ 3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/release/src/router/rc/vpn/ip-down b/release/src/router/rc/vpn/ip-down
+index c21c5f8..94b456a 100644
+--- a/release/src/router/rc/vpn/ip-down
++++ b/release/src/router/rc/vpn/ip-down
+@@ -20,8 +20,10 @@ case "$6" in
+       /usr/sbin/iptables --table nat -D POSTROUTING --out-interface $1 --jump MASQUERADE
+   fi
+   /sbin/service dnsmasq restart
+-  # restore route table
+-  /etc/route_us.sh del $1
++  if [ $DEFAULTROUTE -eq 2 ]; then
++    # restore route table
++    /etc/route_us.sh del $1
++  fi
+   ;;
+  *)
+ esac   
+diff --git a/release/src/router/rc/vpn/ip-up b/release/src/router/rc/vpn/ip-up
+index 960e767..14c0b55 100644
+--- a/release/src/router/rc/vpn/ip-up
++++ b/release/src/router/rc/vpn/ip-up
+@@ -29,8 +29,10 @@ case "$6" in
+       /usr/sbin/iptables --table nat --append POSTROUTING --out-interface $1 --jump MASQUERADE
+   fi
+   /sbin/service dnsmasq restart
+-  # redirect US traffic
+-  /etc/route_us.sh add $1
++  if [ $DEFAULTROUTE -eq 2 ]; then
++    # redirect US traffic
++    /etc/route_us.sh add $1
++  fi
+   ;;
+  *)
+ esac
+diff --git a/release/src/router/www/vpn-pptp.asp b/release/src/router/www/vpn-pptp.asp
+index f0cc9bf..6c912cd 100644
+--- a/release/src/router/www/vpn-pptp.asp
++++ b/release/src/router/www/vpn-pptp.asp
+@@ -130,7 +130,8 @@ createFieldTable('', [
+         options: [['0', 'Auto'],['1', 'None'],['2','Maximum (128 bit only)'],['3','Required (128 or 40 bit)']] },
+ 	{ title: 'Stateless MPPE connection', name: 'f_pptp_client_stateless', type: 'checkbox', value: nvram.pptp_client_stateless != 0 },
+ 	{ title: 'Accept DNS configuration', name: 'pptp_client_peerdns', type: 'select', options: [[0, 'Disabled'],[1, 'Yes'],[2, 'Exclusive']], value: nvram.pptp_client_peerdns },
+-	{ title: 'Redirect Internet traffic', name: 'f_pptp_client_dfltroute', type: 'checkbox', value: nvram.pptp_client_dfltroute != 0 },
++	{ title: 'Redirect Internet traffic', name: 'f_pptp_client_dfltroute', type: 'select', value: nvram.pptp_client_dfltroute,  
++        options: [['0', 'None'],['1', 'All'],['2','US Only']] },
+     { title: 'Remote subnet / netmask', multi: [
+         { name: 'pptp_client_srvsub', type: 'text', maxlen: 15, size: 17, value: nvram.pptp_client_srvsub },
+         { name: 'pptp_client_srvsubmsk', type: 'text', maxlen: 15, size: 17, prefix: ' /&nbsp', value: nvram.pptp_client_srvsubmsk } ] },
+-- 
+2.1.2
+

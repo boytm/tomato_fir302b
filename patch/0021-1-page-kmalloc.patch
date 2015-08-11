@@ -1,0 +1,63 @@
+From 1da2c45cb3d650bb15963caef18e739781278ce0 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Wed, 21 Jan 2015 15:47:16 +0800
+Subject: [PATCH 21/26] =?UTF-8?q?=E5=88=86=E9=85=8D=201=20page=20=E4=BB=A5?=
+ =?UTF-8?q?=E4=B8=8B=E5=86=85=E5=AD=98=EF=BC=8C=E7=9B=B4=E6=8E=A5=E7=94=A8?=
+ =?UTF-8?q?=20kmalloc=20=E9=80=9F=E5=BA=A6=E6=9B=B4=E5=BF=AB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src-rt/linux/linux-2.6/drivers/net/pptp.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+index d8ac9be..4d32d39 100644
+--- a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
++++ b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+@@ -1238,6 +1238,9 @@ static int __init pptp_init_module(void)
+ 	int err=0;
+ 	printk(KERN_INFO "PPTP driver version " PPTP_DRIVER_VERSION "\n");
+ 
++#if MAX_CALLID <= 255
++	callid_sock = kzalloc((MAX_CALLID + 1) * sizeof(void *), GFP_KERNEL);
++#else
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+ 	callid_sock = __vmalloc((MAX_CALLID + 1) * sizeof(void *),
+ 	                        GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+@@ -1246,6 +1249,7 @@ static int __init pptp_init_module(void)
+ 	                        GFP_KERNEL, PAGE_KERNEL);
+ 	memset(callid_sock, 0, (MAX_CALLID + 1) * sizeof(void *));
+ #endif
++#endif
+ 	if (!callid_sock) {
+ 		printk(KERN_ERR "PPTP: cann't allocate memory\n");
+ 		return -ENOMEM;
+@@ -1297,7 +1301,11 @@ out_inet_del_protocol:
+ 	inet_del_protocol(&net_pptp_protocol, IPPROTO_GRE);
+ #endif
+ out_free_mem:
++#if MAX_CALLID <= 255
++	kfree(callid_sock);
++#else
+ 	vfree(callid_sock);
++#endif
+ 	
+ 	return err;
+ }
+@@ -1316,7 +1324,11 @@ static void __exit pptp_exit_module(void)
+ 	proto_unregister(&pptp_sk_proto);
+ 	inet_del_protocol(&net_pptp_protocol, IPPROTO_GRE);
+ #endif
++#if MAX_CALLID <= 255
++	kfree(callid_sock);
++#else
+ 	vfree(callid_sock);
++#endif
+ }
+ 
+ module_init(pptp_init_module);
+-- 
+2.1.2
+

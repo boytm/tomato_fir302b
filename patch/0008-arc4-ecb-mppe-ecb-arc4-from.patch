@@ -1,0 +1,229 @@
+From 04fd7c0efe7250abf4f648b8ede88d52fd46b2ca Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Fri, 10 Oct 2014 04:51:19 -0400
+Subject: [PATCH 08/26] =?UTF-8?q?arc4=20=E7=AE=97=E6=B3=95=E5=A2=9E?=
+ =?UTF-8?q?=E5=8A=A0=E5=8E=9F=E7=94=9F=20ecb=20=E7=89=88=E6=9C=AC=E4=BB=A5?=
+ =?UTF-8?q?=E6=8F=90=E9=AB=98=E6=80=A7=E8=83=BD=EF=BC=8C=E5=9B=A0=E4=B8=BA?=
+ =?UTF-8?q?=20mppe=20=E4=BD=BF=E7=94=A8=E5=B0=B1=E6=98=AF=20ecb(arc4)?=
+ =?UTF-8?q?=E3=80=82from=20https://github.com/hackgfw/openwrt-gfw/blob/069?=
+ =?UTF-8?q?ddd2cbd66eba52eb8d83eb5c276307c683c5a/kernel=5Fpptp=5Fpatch/990?=
+ =?UTF-8?q?-arc4=5Fadd=5Fecd.patch=20=E4=BD=86=E8=BF=99=E4=B8=AA=20ecb=20?=
+ =?UTF-8?q?=E5=AE=9E=E7=8E=B0=E4=B8=8E=E5=86=85=E6=A0=B8=20crypto=20?=
+ =?UTF-8?q?=E7=9A=84=20ecb=20=E5=AE=9E=E7=8E=B0=E5=BE=88=E6=8E=A5=E8=BF=91?=
+ =?UTF-8?q?=EF=BC=8C=E6=98=AF=E5=90=A6=E6=8F=90=E9=AB=98=E6=80=A7=E8=83=BD?=
+ =?UTF-8?q?=E8=BF=98=E5=BE=85=E9=AA=8C=E8=AF=81=EF=BC=8C=E5=85=B6=E5=AE=9E?=
+ =?UTF-8?q?=E8=BF=99=E4=B8=AAtomato=E5=86=85=E6=A0=B8mppe=E8=A2=AB?=
+ =?UTF-8?q?=E6=9B=BF=E6=8D=A2=E4=B8=BAmppc=5Fmppe=E7=9A=84=E5=AE=9E?=
+ =?UTF-8?q?=E7=8E=B0=E4=BA=86=EF=BC=8C=E5=B9=B6=E6=B2=A1=E6=9C=89=E7=9B=B4?=
+ =?UTF-8?q?=E6=8E=A5=E8=B0=83=E7=94=A8=20ecb(arc4)=20=E7=AE=97=E6=B3=95?=
+ =?UTF-8?q?=EF=BC=8C=E5=8F=AA=E8=B0=83=E7=94=A8=E4=BA=86=20arc4=20?=
+ =?UTF-8?q?=E7=AE=97=E6=B3=95?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src-rt/linux/linux-2.6/crypto/arc4.c | 164 +++++++++++++++++++++------
+ 1 file changed, 132 insertions(+), 32 deletions(-)
+
+diff --git a/release/src-rt/linux/linux-2.6/crypto/arc4.c b/release/src-rt/linux/linux-2.6/crypto/arc4.c
+index 8be47e1..46c2ec9 100644
+--- a/release/src-rt/linux/linux-2.6/crypto/arc4.c
++++ b/release/src-rt/linux/linux-2.6/crypto/arc4.c
+@@ -11,9 +11,11 @@
+  * (at your option) any later version.
+  *
+  */
++
+ #include <linux/module.h>
+ #include <linux/init.h>
+ #include <linux/crypto.h>
++#include <crypto/algapi.h>
+ 
+ #define ARC4_MIN_KEY_SIZE	1
+ #define ARC4_MAX_KEY_SIZE	256
+@@ -49,51 +51,149 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+ 	return 0;
+ }
+ 
+-static void arc4_crypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
++static void arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in,
++		       unsigned int len)
+ {
+-	struct arc4_ctx *ctx = crypto_tfm_ctx(tfm);
++ 	u8 *const S = ctx->S;
++	u8 x, y, a, b;
++	u8 ty, ta, tb;
++
++	if (len == 0)
++		return;
++
++	x = ctx->x;
++	y = ctx->y;
++ 
++ 	a = S[x];
++ 	y = (y + a) & 0xff;
++ 	b = S[y];
++
++	do {
++		S[y] = a;
++		a = (a + b) & 0xff;
++		S[x] = b;
++		x = (x + 1) & 0xff;
++		ta = S[x];
++		ty = (y + ta) & 0xff;
++		tb = S[ty];
++		*out++ = *in++ ^ S[a];
++		if (--len == 0)
++			break;
++		y = ty;
++		a = ta;
++		b = tb;
++	} while (true);
++ 
++ 	ctx->x = x;
++ 	ctx->y = y;
++}
++
++static void arc4_crypt_one(struct crypto_tfm *tfm, u8 *out, const u8 *in)
++{
++	arc4_crypt(crypto_tfm_ctx(tfm), out, in, 1);
++}
++
++static int ecb_arc4_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
++			  struct scatterlist *src, unsigned int nbytes)
++{
++	struct arc4_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
++	struct blkcipher_walk walk;
++	int err;
+ 
+-	u8 *const S = ctx->S;
+-	u8 x = ctx->x;
+-	u8 y = ctx->y;
+-	u8 a, b;
+-
+-	a = S[x];
+-	y = (y + a) & 0xff;
+-	b = S[y];
+-	S[x] = b;
+-	S[y] = a;
+-	x = (x + 1) & 0xff;
+-	*out++ = *in ^ S[(a + b) & 0xff];
+-
+-	ctx->x = x;
+-	ctx->y = y;
++	blkcipher_walk_init(&walk, dst, src, nbytes);
++
++	err = blkcipher_walk_virt(desc, &walk);
++
++	while (walk.nbytes > 0) {
++		u8 *wsrc = walk.src.virt.addr;
++		u8 *wdst = walk.dst.virt.addr;
++
++		arc4_crypt(ctx, wdst, wsrc, walk.nbytes);
++
++		err = blkcipher_walk_done(desc, &walk, 0);
++	}
++
++	return err;
+ }
+ 
+-static struct crypto_alg arc4_alg = {
+-	.cra_name		=	"arc4",
+-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
++static struct crypto_alg arc4_algs[2] = { {
++ 	.cra_name		=	"arc4",
++ 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
++ 	.cra_blocksize		=	ARC4_BLOCK_SIZE,
++ 	.cra_ctxsize		=	sizeof(struct arc4_ctx),
++ 	.cra_module		=	THIS_MODULE,
++	.cra_list               =       LIST_HEAD_INIT(arc4_algs[0].cra_list),
++	.cra_u			=	{
++		.cipher = {
++			.cia_min_keysize	=	ARC4_MIN_KEY_SIZE,
++			.cia_max_keysize	=	ARC4_MAX_KEY_SIZE,
++			.cia_setkey		=	arc4_set_key,
++			.cia_encrypt		=	arc4_crypt_one,
++			.cia_decrypt		=	arc4_crypt_one,
++		},
++	},
++}, {
++	.cra_name		=	"ecb(arc4)",
++	.cra_priority		=	100,
++	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
+ 	.cra_blocksize		=	ARC4_BLOCK_SIZE,
+ 	.cra_ctxsize		=	sizeof(struct arc4_ctx),
++	.cra_alignmask		=	0,
++	.cra_type		=	&crypto_blkcipher_type,
+ 	.cra_module		=	THIS_MODULE,
+-	.cra_list		=	LIST_HEAD_INIT(arc4_alg.cra_list),
+-	.cra_u			=	{ .cipher = {
+-	.cia_min_keysize	=	ARC4_MIN_KEY_SIZE,
+-	.cia_max_keysize	=	ARC4_MAX_KEY_SIZE,
+-	.cia_setkey	   	= 	arc4_set_key,
+-	.cia_encrypt	 	=	arc4_crypt,
+-	.cia_decrypt	  	=	arc4_crypt } }
+-};
+-
+-static int __init arc4_init(void)
++	.cra_list               =       LIST_HEAD_INIT(arc4_algs[1].cra_list),
++	.cra_u			=	{
++		.blkcipher = {
++			.min_keysize	=	ARC4_MIN_KEY_SIZE,
++			.max_keysize	=	ARC4_MAX_KEY_SIZE,
++			.setkey		=	arc4_set_key,
++			.encrypt	=	ecb_arc4_crypt,
++			.decrypt	=	ecb_arc4_crypt,
++		},
++	},
++} };
++ 
++int crypto_register_algs(struct crypto_alg *algs, int count)
+ {
+-	return crypto_register_alg(&arc4_alg);
++	int i, ret;
++
++	for (i = 0; i < count; i++) {
++		ret = crypto_register_alg(&algs[i]);
++		if (ret)
++			goto err;
++	}
++
++	return 0;
++
++err:
++	for (--i; i >= 0; --i)
++		crypto_unregister_alg(&algs[i]);
++
++	return ret;
+ }
+ 
++int crypto_unregister_algs(struct crypto_alg *algs, int count)
++{
++	int i, ret;
+ 
++	for (i = 0; i < count; i++) {
++		ret = crypto_unregister_alg(&algs[i]);
++		if (ret)
++			pr_err("Failed to unregister %s %s: %d\n",
++			       algs[i].cra_driver_name, algs[i].cra_name, ret);
++	}
++
++	return 0;
++}
++ 
++static int __init arc4_init(void)
++{
++	return crypto_register_algs(arc4_algs, ARRAY_SIZE(arc4_algs));
++}
++ 
+ static void __exit arc4_exit(void)
+ {
+-	crypto_unregister_alg(&arc4_alg);
++   crypto_unregister_algs(arc4_algs, ARRAY_SIZE(arc4_algs));
+ }
+ 
+ module_init(arc4_init);
+-- 
+2.1.2
+

@@ -1,0 +1,110 @@
+From 77503d72b8c82d61a41b9319423f4c26ab8bcb70 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 16 Jul 2015 15:03:19 +0800
+Subject: [PATCH 25/26] 1) disable -fPIC option, reduce busybox size 15-20% ;
+ 2) use busybox brctl instead of bridge package; 3) cyassl enable AES and
+ disable DES3, because AES popular than DES3 and AES can be accelerated by
+ many modern hardware.
+
+---
+ release/src/Makefile         |  8 +++++++-
+ release/src/btools/libfoo.pl |  3 ++-
+ release/src/router/Makefile  | 10 ++++++----
+ 3 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/release/src/Makefile b/release/src/Makefile
+index 9731730..b01a9f3 100644
+--- a/release/src/Makefile
++++ b/release/src/Makefile
+@@ -571,6 +571,12 @@ define BusyboxOptions
+ 		echo "CONFIG_MKNOD=y" >>$(1); \
+ 		sed -i "/CONFIG_FEATURE_SYSLOGD_READ_BUFFER_SIZE/d" $(1); \
+ 		echo "CONFIG_FEATURE_SYSLOGD_READ_BUFFER_SIZE=512" >>$(1); \
++		sed -i "/CONFIG_BRCTL/d" $(1); \
++		echo "CONFIG_BRCTL=y" >>$(1); \
++		sed -i "/CONFIG_FEATURE_BRCTL_FANCY/d" $(1); \
++		echo "CONFIG_FEATURE_BRCTL_FANCY=y" >>$(1); \
++		sed -i "/CONFIG_FEATURE_BRCTL_SHOW/d" $(1); \
++		echo "CONFIG_FEATURE_BRCTL_SHOW=y" >>$(1); \
+ 	else \
+ 		sed -i "/CONFIG_UDHCPC=y/d" $(1); \
+ 		sed -i "/CONFIG_UDHCPC_OLD/d" $(1); \
+@@ -1220,7 +1226,7 @@ setprofile:
+ 	echo 'TOMATO_BUILD_USB = "$(USB)"' >> tomato_profile.mak
+ 
+ 	#echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=mips32 -mips32 $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
+-	echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=24kc -march=24kc $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
++	echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=74kc -march=74kc $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
+ 
+ # Note that changes to variables in tomato_profile.mak don't
+ # get propogated to this invocation of make!
+diff --git a/release/src/btools/libfoo.pl b/release/src/btools/libfoo.pl
+index c5f7ae0..bac3f4d 100755
+--- a/release/src/btools/libfoo.pl
++++ b/release/src/btools/libfoo.pl
+@@ -93,7 +93,7 @@ sub load
+ 	while (<$f>) {
+ 		print LOG;
+ 
+-		if (/\s+(WEAK|GLOBAL)\s+(?:DEFAULT|VISIBLE)\s+(\w+)\s+(\w+)/) {
++		if (/\s+(WEAK|GLOBAL)\s+(?:DEFAULT|DEFAULT \[MIPS PLT\]|VISIBLE)\s+(\w+)\s+(\w+)/) {
+ 			$s = $3;
+ 			if ($2 eq 'UND') {
+ 				if ($1 eq 'GLOBAL') {
+@@ -474,6 +474,7 @@ if ($ARGV[0] eq "--noopt") {
+ 	$stripshared = "no";
+ }
+ 
++print "genSo:\n";
+ #genSO("${root}/lib/libc.so.0", "${uclibc}/lib/libc.a", "", "-Wl,-init=__uClibc_init ${uclibc}/lib/optinfo/interp.os");
+ genSO("${root}/lib/libc.so.0", "${uclibc}/lib/libc_so.a", "", "-Wl,-init=__uClibc_init ${uclibc}/lib/optinfo/interp.os");
+ genSO("${root}/lib/libresolv.so.0", "${uclibc}/lib/libresolv.a", "${stripshared}");
+diff --git a/release/src/router/Makefile b/release/src/router/Makefile
+index 30040f5..1bb8c78 100644
+--- a/release/src/router/Makefile
++++ b/release/src/router/Makefile
+@@ -38,7 +38,9 @@ obj-y += others
+ obj-y += busybox
+ obj-y += httpd
+ obj-y += www
++ifneq ($(CONFIG_LINUX26),y)
+ obj-y += bridge
++endif
+ obj-y += dnsmasq
+ obj-y += etc
+ # obj-y += vlan # use Busybox vconfig
+@@ -682,11 +684,11 @@ oldconfig oldconf: koldconf roldconf dependconf bboldconf
+ #
+ 
+ busybox: dummy
+-	@$(MAKE) -C busybox EXTRA_CFLAGS="-fPIC $(EXTRACFLAGS)" $(PARALLEL_BUILD)
++	@$(MAKE) -C busybox EXTRA_CFLAGS=" $(EXTRACFLAGS)" $(PARALLEL_BUILD)
+ 
+ busybox-install:
+ 	rm -rf $(INSTALLDIR)/busybox
+-	$(MAKE) -C busybox install EXTRA_CFLAGS="-fPIC $(EXTRACFLAGS)" CONFIG_PREFIX=$(INSTALLDIR)/busybox
++	$(MAKE) -C busybox install EXTRA_CFLAGS=" $(EXTRACFLAGS)" CONFIG_PREFIX=$(INSTALLDIR)/busybox
+ 
+ busybox-clean:
+ 	-@$(MAKE) -C busybox distclean
+@@ -715,7 +717,7 @@ matrixssl-clean:
+ cyassl/stamp-h1:
+ 	@cd cyassl && CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \
+ 	CFLAGS="-Os -Wall -fPIC $(EXTRACFLAGS) -ffunction-sections -fdata-sections \
+-	-DNO_MD4 -DNO_AES -DNO_ERROR_STRINGS -DNO_HC128 -DNO_RABBIT -DNO_PSK -DNO_DSA -DNO_DH -DNO_PWDBASED" \
++	-DNO_MD4 -DNO_DES3 -DNO_ERROR_STRINGS -DNO_HC128 -DNO_RABBIT -DNO_PSK -DNO_DSA -DNO_DH -DNO_PWDBASED" \
+ 	LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC" \
+ 	PTHREAD_LIBS="-lpthread" \
+ 	$(CONFIGURE)
+@@ -807,7 +809,7 @@ dnsmasq: $(if $(TCONFIG_DNSSEC),nettle,)
+ 		$(if $(TCONFIG_IPV6),-DUSE_IPV6,-DNO_IPV6) \
+ 		$(if $(CONFIG_LINUX26),-DUSE_IPSET,-DNO_IPSET) \
+ 		-DHAVE_BROKEN_RTC -DHAVE_TOMATO $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \
+-	LDFLAGS="$(if $(TCONFIG_DNSSEC),-L$(TOP)/nettle/lib -L$(TOP)/gmp/.libs,) -ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC" \
++	LDFLAGS="$(if $(TCONFIG_DNSSEC),-L$(TOP)/nettle/lib -L$(TOP)/gmp/.libs,) -ffunction-sections -fdata-sections -Wl,--gc-sections " \
+ 	$(if $(TCONFIG_DNSSEC),PKG_CONFIG_PATH="$(TOP)/nettle/lib/pkgconfig",)
+ 
+ dnsmasq-install:
+-- 
+2.1.2
+

@@ -1,0 +1,267 @@
+From 8915f2522c2932dfcc3c23177cb13f4454222b4c Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Mon, 1 Dec 2014 10:55:51 +0800
+Subject: [PATCH 13/26] =?UTF-8?q?=E9=87=8D=E5=AE=9A=E7=AB=AF=E5=8F=A3=2080?=
+ =?UTF-8?q?,443=20=E7=9A=84=20US=20=E6=B5=81=E9=87=8F=E8=B5=B0=20pptp?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/rom/rom/etc/route_us.sh | 230 +++++++++++++++--------------
+ 1 file changed, 122 insertions(+), 108 deletions(-)
+
+diff --git a/release/src/router/rom/rom/etc/route_us.sh b/release/src/router/rom/rom/etc/route_us.sh
+index 02bf76a..135b99d 100755
+--- a/release/src/router/rom/rom/etc/route_us.sh
++++ b/release/src/router/rom/rom/etc/route_us.sh
+@@ -3,14 +3,27 @@
+ action=$1
+ 
+ vpn=$2
+-net=ppp0
++net=`nvram get wan_iface`
++lan=`nvram get lan_ifname`
++
++modprobe ipt_set
++table=" table 8 "
+ 
+ case $action in
+ add)
+-	ip route change default dev $vpn
++	ip route replace $table default dev $vpn
++	#iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff 
++	iptables -t mangle -A PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff
++	ip rule add fwmark 0xffff $table priority 1
++
++        echo 0 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
+ ;;
+ del)
+-	ip route change default dev $net
++        echo 1 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
++
++	ip rule del fwmark 0xffff $table priority 1
++	iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff 
++	ip route replace $table default dev $net
+ ;;
+ *)
+ 	echo "Unkown action: $action" >&2
+@@ -18,109 +31,110 @@ del)
+ ;;
+ esac
+ 
++#ip route replace default dev $vpn
++ip route $action $table 0.0.0.0/7 dev $net
++ip route $action $table 14.0.0.0/8 dev $net
++ip route $action $table 27.0.0.0/8 dev $net
++ip route $action $table 36.0.0.0/8 dev $net
++ip route $action $table 39.0.0.0/8 dev $net
++ip route $action $table 42.0.0.0/7 dev $net
++ip route $action $table 45.64.0.0/10 dev $net
++ip route $action $table 49.0.0.0/8 dev $net
++ip route $action $table 54.222.0.0/15 dev $net
++ip route $action $table 58.0.0.0/7 dev $net
++ip route $action $table 60.0.0.0/7 dev $net
++ip route $action $table 60.254.0.0/16 dev $vpn
++ip route $action $table 91.232.0.0/13 dev $net
++ip route $action $table 101.0.0.0/8 dev $net
++ip route $action $table 102.0.0.0/7 dev $net
++ip route $action $table 103.246.192.0/18 dev $vpn
++ip route $action $table 106.0.0.0/8 dev $net
++ip route $action $table 110.0.0.0/7 dev $net
++ip route $action $table 112.0.0.0/4 dev $net
++ip route $action $table 113.28.0.0/15 dev $vpn
++ip route $action $table 139.0.0.0/12 dev $net
++ip route $action $table 139.128.0.0/15 dev $net
++ip route $action $table 139.148.0.0/15 dev $net
++ip route $action $table 139.152.0.0/13 dev $net
++ip route $action $table 139.170.0.0/16 dev $net
++ip route $action $table 139.176.0.0/16 dev $net
++ip route $action $table 139.183.0.0/16 dev $net
++ip route $action $table 139.186.0.0/16 dev $net
++ip route $action $table 139.188.0.0/14 dev $net
++ip route $action $table 139.192.0.0/11 dev $net
++ip route $action $table 139.224.0.0/16 dev $net
++ip route $action $table 139.226.0.0/15 dev $net
++ip route $action $table 140.75.0.0/16 dev $net
++ip route $action $table 140.143.0.0/16 dev $net
++ip route $action $table 140.205.0.0/16 dev $net
++ip route $action $table 140.206.0.0/15 dev $net
++ip route $action $table 140.210.0.0/16 dev $net
++ip route $action $table 140.224.0.0/16 dev $net
++ip route $action $table 140.237.0.0/16 dev $net
++ip route $action $table 140.240.0.0/16 dev $net
++ip route $action $table 140.243.0.0/16 dev $net
++ip route $action $table 140.246.0.0/16 dev $net
++ip route $action $table 140.249.0.0/16 dev $net
++ip route $action $table 140.250.0.0/16 dev $net
++ip route $action $table 140.255.0.0/16 dev $net
++ip route $action $table 144.0.0.0/15 dev $net
++ip route $action $table 144.6.0.0/15 dev $net
++ip route $action $table 144.12.0.0/16 dev $net
++ip route $action $table 144.52.0.0/14 dev $net
++ip route $action $table 144.122.0.0/15 dev $net
++ip route $action $table 144.255.0.0/16 dev $net
++ip route $action $table 150.0.0.0/10 dev $net
++ip route $action $table 150.115.0.0/16 dev $net
++ip route $action $table 150.121.0.0/16 dev $net
++ip route $action $table 150.122.0.0/16 dev $net
++ip route $action $table 150.128.0.0/15 dev $net
++ip route $action $table 150.138.0.0/15 dev $net
++ip route $action $table 150.223.0.0/16 dev $net
++ip route $action $table 150.242.0.0/16 dev $net
++ip route $action $table 150.254.0.0/15 dev $net
++ip route $action $table 152.104.0.0/13 dev $net
++ip route $action $table 153.0.0.0/15 dev $net
++ip route $action $table 153.3.0.0/16 dev $net
++ip route $action $table 153.34.0.0/15 dev $net
++ip route $action $table 153.36.0.0/15 dev $net
++ip route $action $table 153.96.0.0/14 dev $net
++ip route $action $table 153.100.0.0/15 dev $net
++ip route $action $table 153.118.0.0/15 dev $net
++ip route $action $table 157.0.0.0/12 dev $net
++ip route $action $table 157.16.0.0/14 dev $net
++ip route $action $table 157.61.0.0/16 dev $net
++ip route $action $table 157.122.0.0/16 dev $net
++ip route $action $table 157.148.0.0/16 dev $net
++ip route $action $table 157.156.0.0/14 dev $net
++ip route $action $table 157.255.0.0/16 dev $net
++ip route $action $table 159.226.0.0/16 dev $net
++ip route $action $table 161.207.0.0/16 dev $net
++ip route $action $table 162.105.0.0/16 dev $net
++ip route $action $table 163.0.0.0/15 dev $net
++ip route $action $table 163.44.0.0/14 dev $net
++ip route $action $table 163.48.0.0/12 dev $net
++ip route $action $table 163.125.0.0/16 dev $net
++ip route $action $table 163.136.0.0/13 dev $net
++ip route $action $table 163.177.0.0/16 dev $net
++ip route $action $table 163.178.0.0/15 dev $net
++ip route $action $table 163.204.0.0/16 dev $net
++ip route $action $table 166.110.0.0/15 dev $net
++ip route $action $table 167.139.0.0/16 dev $net
++ip route $action $table 167.189.0.0/16 dev $net
++ip route $action $table 168.160.0.0/16 dev $net
++ip route $action $table 171.0.0.0/9 dev $net
++ip route $action $table 171.64.0.0/12 dev $vpn
++ip route $action $table 171.208.0.0/12 dev $net
++ip route $action $table 175.0.0.0/8 dev $net
++ip route $action $table 180.0.0.0/6 dev $net
++ip route $action $table 192.124.154.0/23 dev $net
++ip route $action $table 192.188.168.0/22 dev $net
++ip route $action $table 202.0.0.0/7 dev $net
++ip route $action $table 202.72.96.0/19 dev $vpn
++ip route $action $table 203.144.0.0/18 dev $vpn
++ip route $action $table 203.187.128.0/19 dev $vpn
++ip route $action $table 210.0.0.0/7 dev $net
++ip route $action $table 218.0.0.0/7 dev $net
++ip route $action $table 220.0.0.0/6 dev $net
+ 
+-#ip route change default dev $vpn
+-ip route $action 0.0.0.0/7 dev $net
+-ip route $action 14.0.0.0/8 dev $net
+-ip route $action 27.0.0.0/8 dev $net
+-ip route $action 36.0.0.0/8 dev $net
+-ip route $action 39.0.0.0/8 dev $net
+-ip route $action 42.0.0.0/7 dev $net
+-ip route $action 45.64.0.0/10 dev $net
+-ip route $action 49.0.0.0/8 dev $net
+-ip route $action 54.222.0.0/15 dev $net
+-ip route $action 58.0.0.0/7 dev $net
+-ip route $action 60.0.0.0/7 dev $net
+-ip route $action 60.254.0.0/16 dev $vpn
+-ip route $action 91.232.0.0/13 dev $net
+-ip route $action 101.0.0.0/8 dev $net
+-ip route $action 102.0.0.0/7 dev $net
+-ip route $action 103.246.192.0/18 dev $vpn
+-ip route $action 106.0.0.0/8 dev $net
+-ip route $action 110.0.0.0/7 dev $net
+-ip route $action 112.0.0.0/4 dev $net
+-ip route $action 113.28.0.0/15 dev $vpn
+-ip route $action 139.0.0.0/12 dev $net
+-ip route $action 139.128.0.0/15 dev $net
+-ip route $action 139.148.0.0/15 dev $net
+-ip route $action 139.152.0.0/13 dev $net
+-ip route $action 139.170.0.0/16 dev $net
+-ip route $action 139.176.0.0/16 dev $net
+-ip route $action 139.183.0.0/16 dev $net
+-ip route $action 139.186.0.0/16 dev $net
+-ip route $action 139.188.0.0/14 dev $net
+-ip route $action 139.192.0.0/11 dev $net
+-ip route $action 139.224.0.0/16 dev $net
+-ip route $action 139.226.0.0/15 dev $net
+-ip route $action 140.75.0.0/16 dev $net
+-ip route $action 140.143.0.0/16 dev $net
+-ip route $action 140.205.0.0/16 dev $net
+-ip route $action 140.206.0.0/15 dev $net
+-ip route $action 140.210.0.0/16 dev $net
+-ip route $action 140.224.0.0/16 dev $net
+-ip route $action 140.237.0.0/16 dev $net
+-ip route $action 140.240.0.0/16 dev $net
+-ip route $action 140.243.0.0/16 dev $net
+-ip route $action 140.246.0.0/16 dev $net
+-ip route $action 140.249.0.0/16 dev $net
+-ip route $action 140.250.0.0/16 dev $net
+-ip route $action 140.255.0.0/16 dev $net
+-ip route $action 144.0.0.0/15 dev $net
+-ip route $action 144.6.0.0/15 dev $net
+-ip route $action 144.12.0.0/16 dev $net
+-ip route $action 144.52.0.0/14 dev $net
+-ip route $action 144.122.0.0/15 dev $net
+-ip route $action 144.255.0.0/16 dev $net
+-ip route $action 150.0.0.0/10 dev $net
+-ip route $action 150.115.0.0/16 dev $net
+-ip route $action 150.121.0.0/16 dev $net
+-ip route $action 150.122.0.0/16 dev $net
+-ip route $action 150.128.0.0/15 dev $net
+-ip route $action 150.138.0.0/15 dev $net
+-ip route $action 150.223.0.0/16 dev $net
+-ip route $action 150.242.0.0/16 dev $net
+-ip route $action 150.254.0.0/15 dev $net
+-ip route $action 152.104.0.0/13 dev $net
+-ip route $action 153.0.0.0/15 dev $net
+-ip route $action 153.3.0.0/16 dev $net
+-ip route $action 153.34.0.0/15 dev $net
+-ip route $action 153.36.0.0/15 dev $net
+-ip route $action 153.96.0.0/14 dev $net
+-ip route $action 153.100.0.0/15 dev $net
+-ip route $action 153.118.0.0/15 dev $net
+-ip route $action 157.0.0.0/12 dev $net
+-ip route $action 157.16.0.0/14 dev $net
+-ip route $action 157.61.0.0/16 dev $net
+-ip route $action 157.122.0.0/16 dev $net
+-ip route $action 157.148.0.0/16 dev $net
+-ip route $action 157.156.0.0/14 dev $net
+-ip route $action 157.255.0.0/16 dev $net
+-ip route $action 159.226.0.0/16 dev $net
+-ip route $action 161.207.0.0/16 dev $net
+-ip route $action 162.105.0.0/16 dev $net
+-ip route $action 163.0.0.0/15 dev $net
+-ip route $action 163.44.0.0/14 dev $net
+-ip route $action 163.48.0.0/12 dev $net
+-ip route $action 163.125.0.0/16 dev $net
+-ip route $action 163.136.0.0/13 dev $net
+-ip route $action 163.177.0.0/16 dev $net
+-ip route $action 163.178.0.0/15 dev $net
+-ip route $action 163.204.0.0/16 dev $net
+-ip route $action 166.110.0.0/15 dev $net
+-ip route $action 167.139.0.0/16 dev $net
+-ip route $action 167.189.0.0/16 dev $net
+-ip route $action 168.160.0.0/16 dev $net
+-ip route $action 171.0.0.0/9 dev $net
+-ip route $action 171.64.0.0/12 dev $vpn
+-ip route $action 171.208.0.0/12 dev $net
+-ip route $action 175.0.0.0/8 dev $net
+-ip route $action 180.0.0.0/6 dev $net
+-ip route $action 192.124.154.0/23 dev $net
+-ip route $action 192.188.168.0/22 dev $net
+-ip route $action 202.0.0.0/7 dev $net
+-ip route $action 202.72.96.0/19 dev $vpn
+-ip route $action 203.144.0.0/18 dev $vpn
+-ip route $action 203.187.128.0/19 dev $vpn
+-ip route $action 210.0.0.0/7 dev $net
+-ip route $action 218.0.0.0/7 dev $net
+-ip route $action 220.0.0.0/6 dev $net
++ip route flush cache
+-- 
+2.1.2
+

@@ -1,0 +1,52 @@
+From 5b47231b47d78ab993c875f16a399ecf65433ba5 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Wed, 24 Dec 2014 17:55:15 +0800
+Subject: [PATCH 17/26] =?UTF-8?q?callid=5Fsock=20=E5=8D=A0=E7=94=A8=206553?=
+ =?UTF-8?q?6=20*=20sizeof(void*)=20=E5=85=B1256K=E7=9A=84=E5=86=85?=
+ =?UTF-8?q?=E5=AD=98,=20=E6=99=AE=E9=80=9A=E8=B7=AF=E7=94=B1=E5=99=A8?=
+ =?UTF-8?q?=E4=B8=8D=E5=8F=AF=E8=83=BD=E5=90=8C=E6=97=B6=E6=9C=89=E8=BF=99?=
+ =?UTF-8?q?=E4=B9=88=E5=A4=9A=E4=B8=AA=20pptp=20=E8=BF=9E=E6=8E=A5?=
+ =?UTF-8?q?=EF=BC=8C=E6=89=80=E4=BB=A5=E4=BD=BF=E7=94=A8=E8=BE=83=E5=B0=8F?=
+ =?UTF-8?q?=E7=9A=84=E5=80=BC?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src-rt/linux/linux-2.6/drivers/net/pptp.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+index aa5b456..cb0fb56 100644
+--- a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
++++ b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+@@ -61,7 +61,7 @@ static int log_level=0;
+ static int log_packets=10;
+ #endif
+ 
+-#define MAX_CALLID 65535
++#define MAX_CALLID 31 //65535
+ #define PPP_LCP_ECHOREQ 0x09
+ #define PPP_LCP_ECHOREP 0x0A
+ 
+@@ -291,6 +291,8 @@ static struct pppox_sock * lookup_chan(u16 call_id, __be32 s_addr)
+ 	struct pppox_sock *sock;
+ 	struct pptp_opt *opt;
+ 
++	if (call_id >= MAX_CALLID) return NULL;
++
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+ 	rcu_read_lock();
+ 	sock = rcu_dereference(callid_sock[call_id]);
+@@ -364,6 +366,8 @@ static int add_chan(struct pppox_sock *sock)
+ 	    call_id=find_next_zero_bit(callid_bitmap,MAX_CALLID,call_id+1);
+ 	    if (call_id==MAX_CALLID)
+ 				call_id=find_next_zero_bit(callid_bitmap,MAX_CALLID,1);
++	    if (call_id==MAX_CALLID)
++		goto exit;
+ 	    sock->proto.pptp.src_addr.call_id=call_id;
+ 	}
+ 	else if (test_bit(sock->proto.pptp.src_addr.call_id,callid_bitmap))
+-- 
+2.1.2
+

@@ -1,0 +1,27 @@
+From e67ae09952973db25a04ad0b51e644c173743e64 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Mon, 1 Jun 2015 16:17:04 +0800
+Subject: [PATCH 24/26] =?UTF-8?q?=E8=BF=91=E6=9C=9F=20zh.wikipedia.org=20?=
+ =?UTF-8?q?=E4=B8=8D=E8=83=BD=E8=AE=BF=E9=97=AE?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+index d2e214b..fa66e12 100644
+--- a/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
++++ b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+@@ -51,3 +51,6 @@ server=/sourceforge.net/208.67.222.222#5353
+ 
+ #feedly
+ server=/feedly.com/208.67.222.222#5353
++
++# wikipedia.org
++server=/wikipedia.org/208.67.222.222#5353
+-- 
+2.1.2
+

@@ -1,0 +1,37 @@
+From 0a207fa17ad12af9303280de36817d531c34a834 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 9 Oct 2014 10:48:11 -0400
+Subject: [PATCH 04/26] add support for router fir302b and tune gcc
+ optimization level to 24kc
+
+---
+ release/src/Makefile | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/release/src/Makefile b/release/src/Makefile
+index 054b218..9731730 100644
+--- a/release/src/Makefile
++++ b/release/src/Makefile
+@@ -1133,6 +1133,9 @@ e2500:
+ e3200:
+ 	@$(MAKE) r2z USBAP=y NVRAM_SIZE=60 LINKSYS_E3200=y
+ 
++fir302b:
++	@$(MAKE) bin MIPS32=r2 NO_JFFS=y NO_CIFS=y NO_ZEBRA=y B=V BUILD_DESC="Fir302B_MiniVPN" USB="" PPTPD=y OPENVPN=n NO_HTTPS=y NO_XXTP=n
++
+ n6:
+ 	@$(MAKE) bin MIPS32=r2 OPENVPN=y BBEXTRAS=y EBTABLES=y IPV6SUPP=y B=E BUILD_DESC="TendaN6" USB="USB" TOR=y NOCAT=y DNSCRYPT=y PPTPD=y USBAP=y NO_USBAPP=y
+ 
+@@ -1216,7 +1219,8 @@ setprofile:
+ 	echo 'TOMATO_PROFILE_U = $(uppercase_N)' >> tomato_profile.mak
+ 	echo 'TOMATO_BUILD_USB = "$(USB)"' >> tomato_profile.mak
+ 
+-	echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=mips32 -mips32 $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
++	#echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=mips32 -mips32 $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
++	echo 'export EXTRACFLAGS := $(EXTRA_CFLAGS) -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=24kc -march=24kc $(if $(filter $(NVRAM_SIZE),0),,-DCONFIG_NVRAM_SIZE=$(NVRAM_SIZE)) $(EXTRA_64KCFLAG)' >> tomato_profile.mak
+ 
+ # Note that changes to variables in tomato_profile.mak don't
+ # get propogated to this invocation of make!
+-- 
+2.1.2
+

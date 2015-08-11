@@ -1,0 +1,56 @@
+From e1df3ed4ef562f021a77c98fb75aae85ce27f1ce Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Fri, 26 Dec 2014 17:20:16 +0800
+Subject: [PATCH 18/26] =?UTF-8?q?UDP=20relay=20=E7=A6=81=E7=94=A8=E6=97=B6?=
+ =?UTF-8?q?=E4=B8=8D=E9=9C=80=E5=90=AF=E5=8A=A8=20bcrelay=20=E8=BF=9B?=
+ =?UTF-8?q?=E7=A8=8B?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/pptpd/pptpd.c | 2 +-
+ release/src/router/rc/pptpd.c    | 7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/release/src/router/pptpd/pptpd.c b/release/src/router/pptpd/pptpd.c
+index b6d2b6a..d6fd197 100644
+--- a/release/src/router/pptpd/pptpd.c
++++ b/release/src/router/pptpd/pptpd.c
+@@ -436,7 +436,7 @@ int main(int argc, char **argv)
+ 	}
+ 
+ #ifdef BCRELAY
+-      if (bcrelay) {
++      if (bcrelay && bcrelay[0]) {
+              syslog(LOG_DEBUG, "CTRL: BCrelay incoming interface is %s", bcrelay);
+              /* Launch BCrelay  */
+ #ifndef HAVE_FORK
+diff --git a/release/src/router/rc/pptpd.c b/release/src/router/rc/pptpd.c
+index a6cae34..a3c0b0b 100644
+--- a/release/src/router/rc/pptpd.c
++++ b/release/src/router/rc/pptpd.c
+@@ -84,6 +84,8 @@ void start_pptpd(void)
+ 	int ret = 0, mss = 0, manual_dns = 0;
+ //	char *lpTemp;
+ 	FILE *fp;
++	const size_t buf_size = 256;
++    char buf[buf_size + 1] = {0};
+ 
+ //	int pid = getpid();
+ //	_dprintf("start_pptpd: getpid= %d\n", pid);
+@@ -244,7 +246,10 @@ void start_pptpd(void)
+ 
+ 	// Create pptpd.conf options file for pptpd daemon
+ 	fp = fopen("/tmp/pptpd/pptpd.conf", "w");
+-	fprintf(fp, "bcrelay %s\n", nvram_safe_get("pptpd_broadcast"));
++	strncpy(buf, nvram_safe_get("pptpd_broadcast"), buf_size);
++	if(buf[0] && strcmp(buf, "disable") != 0) {
++		fprintf(fp, "bcrelay %s\n", buf);
++	}
+ 	fprintf(fp, "localip %s\n"
+ 		"remoteip %s\n", nvram_safe_get("lan_ipaddr"),
+ 		nvram_safe_get("pptpd_remoteip"));
+-- 
+2.1.2
+

@@ -1,0 +1,87 @@
+From cb36bfd276b053a81974a152084b15e291487b10 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Tue, 30 Dec 2014 10:30:31 +0800
+Subject: [PATCH 19/26] =?UTF-8?q?=E6=9B=B4=E6=AD=A3=E4=BA=86=20pptp=20?=
+ =?UTF-8?q?=E6=A8=A1=E5=9D=97=E8=B0=83=E8=AF=95=E6=97=A5=E5=BF=97=E7=9B=B8?=
+ =?UTF-8?q?=E5=85=B3,=20=E5=B9=B6=E5=90=AF=E7=94=A8=E8=B0=83=E8=AF=95?=
+ =?UTF-8?q?=E6=97=A5=E5=BF=97?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src-rt/linux/linux-2.6/drivers/net/pptp.c | 35 +++++++++++++++--------
+ 1 file changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+index cb0fb56..d8ac9be 100644
+--- a/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
++++ b/release/src-rt/linux/linux-2.6/drivers/net/pptp.c
+@@ -45,7 +45,7 @@
+ 
+ #include <asm/uaccess.h>
+ 
+-//#define DEBUG
++#define DEBUG
+ //#define CONFIG_NET_IPGRE_DEMUX
+ #define HAVE_FIND_NEXT_BIT
+ #define HAVE_SKB_CLONE_WRITABLE
+@@ -57,7 +57,7 @@
+ #define PPTP_DRIVER_VERSION "0.8.5"
+ 
+ #ifdef DEBUG
+-static int log_level=0;
++static int log_level=1;
+ static int log_packets=10;
+ #endif
+ 
+@@ -660,25 +660,36 @@ static int pptp_rcv_core(struct sock *sk,struct sk_buff *skb)
+ 
+ 	payload=skb->data+headersize;
+ 	seqdiff=opt->seq_ahead - seq;
+-	/* check if sequence number too old */
+-	if (seqdiff >= opt->seq_ahead - opt->seq_recv && seqdiff < 0x80000000) {
++	/* check if sequence number too old */ // seq < seq_recv
++	if (seqdiff >= opt->seq_ahead - opt->seq_recv && seqdiff < 0x80000000) { 
++	    if ( (payload[0] == PPP_ALLSTATIONS) && (payload[1] == PPP_UI) &&
++		    (PPP_PROTOCOL(payload) == PPP_LCP) &&
++		    ((payload[4] == PPP_LCP_ECHOREQ) || (payload[4] == PPP_LCP_ECHOREP)) ){
++#ifdef DEBUG
++		if ( log_level >= 1)
++		    printk(KERN_INFO"PPTP[%i]: allowing old LCP Echo packet %d (expecting %d)\n", opt->src_addr.call_id,
++			    seq, opt->seq_recv + 1);
++#endif
++		goto allow_packet;
++	    }
++
++#ifdef DEBUG
++	    if ( log_level >= 1)
++		printk(KERN_INFO"PPTP[%i]: discarding old packet %d (expecting %d)\n",opt->src_addr.call_id,
++			seq, opt->seq_recv + 1);
++#endif
+ 	}
+-	/* check if sequence number in window */
++	/* check if sequence number in window */ // seq_recv < seq < seq_ahead
+ 	else if (seqdiff < MISSING_WINDOW) {
+ 		if (opt->skb_buff[seq%MISSING_WINDOW] == NULL) {
+-#ifdef DEBUG
+-			if ( log_level >= 1)
+-				printk(KERN_INFO"PPTP[%i]: allowing old LCP Echo packet %d (expecting %d)\n", opt->src_addr.call_id,
+-							seq, opt->seq_recv + 1);
+-#endif
+ 			goto allow_packet;
+ 		}
+ #ifdef DEBUG
+ 		if ( log_level >= 1)
+-			printk(KERN_INFO"PPTP[%i]: discarding duplicate or old packet %d (expecting %d)\n",opt->src_addr.call_id,
++			printk(KERN_INFO"PPTP[%i]: discarding duplicate packet %d (expecting %d)\n",opt->src_addr.call_id,
+ 							seq, opt->seq_recv + 1);
+ #endif
+- 	/* update ahead */
++ 	/* update ahead */ // seq > seq_ahead
+ 	}else{
+ 		for (;opt->seq_ahead != seq;) {
+ 			opt->seq_ahead++;
+-- 
+2.1.2
+

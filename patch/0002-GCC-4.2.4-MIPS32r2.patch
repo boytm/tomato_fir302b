@@ -1,0 +1,110 @@
+From a5787e387086c686949c8bccdb2caf51d0cf4cfb Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Wed, 15 Oct 2014 16:04:00 +0800
+Subject: [PATCH 02/26] =?UTF-8?q?GCC=204.2.4=20=E7=BC=96=E8=AF=91=E6=97=B6?=
+ =?UTF-8?q?=E4=BC=98=E5=8C=96=E6=94=B9=E4=B8=BA=20MIPS32r2=20GCC=204.4.6?=
+ =?UTF-8?q?=20=E7=BC=96=E8=AF=91=E6=97=B6=EF=BC=8Clibfoo.pl=20stip=20?=
+ =?UTF-8?q?=E5=8A=A8=E6=80=81=E5=BA=93=E6=97=A0=E7=94=A8=E7=AC=A6=E5=8F=B7?=
+ =?UTF-8?q?=E6=97=B6=E9=94=99=E8=AF=AF=E3=80=82=E5=9B=A0=E4=B8=BA=20GCC=20?=
+ =?UTF-8?q?4.3=20=E8=B5=B7=20MIPS=20=E9=BB=98=E8=AE=A4=E6=98=AF=20-mno-sha?=
+ =?UTF-8?q?red=EF=BC=8C=E6=89=80=E4=BB=A5=20.a=20=E5=BA=93=E4=B8=8D?=
+ =?UTF-8?q?=E8=83=BD=E5=86=8D=E7=94=A8=E6=9D=A5=E7=94=9F=E6=88=90=E4=BC=98?=
+ =?UTF-8?q?=E5=8C=96=E5=90=8E=E7=9A=84=20.so=20=E6=96=87=E4=BB=B6=E4=BA=86?=
+ =?UTF-8?q?=EF=BC=8C=E6=94=B9=E4=B8=BA=E4=BD=BF=E7=94=A8=E7=94=9F=E6=88=90?=
+ =?UTF-8?q?=20.so=20=E7=9A=84=E4=B8=AD=E9=97=B4=E6=96=87=E4=BB=B6=20=5Fso.?=
+ =?UTF-8?q?a?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/btools/libfoo.pl             | 7 +++++--
+ release/src/router/libbcmcrypto/Makefile | 2 +-
+ toolchain/build26.sh                     | 2 +-
+ toolchain/config.2.6-4.2.4               | 2 +-
+ toolchain/config.2.6-4.4.6               | 2 +-
+ 5 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/release/src/btools/libfoo.pl b/release/src/btools/libfoo.pl
+index 2ec7b1e..c5f7ae0 100755
+--- a/release/src/btools/libfoo.pl
++++ b/release/src/btools/libfoo.pl
+@@ -436,6 +436,7 @@ sub genSO
+ 	
+ 	print "$name: Attempted to remove ", scalar(@unused), "/", scalar(@unused) + scalar(@used), " symbols. ";
+ 	printf "%.2fK - %.2fK = %.2fK\n", $before / 1024, $after / 1024, ($before - $after) / 1024;
++	printf LOG "%.2fK - %.2fK = %.2fK\n", $before / 1024, $after / 1024, ($before - $after) / 1024;
+ 	
+ #	print "\n$name: Attempting to link ", scalar(@used), " and remove ", scalar(@unused), " objects...\n";
+ #	printf "Before: %.2fK / After: %.2fK / Removed: %.2fK\n\n", $before / 1024, $after / 1024, ($before - $after) / 1024;
+@@ -473,11 +474,13 @@ if ($ARGV[0] eq "--noopt") {
+ 	$stripshared = "no";
+ }
+ 
+-genSO("${root}/lib/libc.so.0", "${uclibc}/lib/libc.a", "", "-Wl,-init=__uClibc_init ${uclibc}/lib/optinfo/interp.os");
++#genSO("${root}/lib/libc.so.0", "${uclibc}/lib/libc.a", "", "-Wl,-init=__uClibc_init ${uclibc}/lib/optinfo/interp.os");
++genSO("${root}/lib/libc.so.0", "${uclibc}/lib/libc_so.a", "", "-Wl,-init=__uClibc_init ${uclibc}/lib/optinfo/interp.os");
+ genSO("${root}/lib/libresolv.so.0", "${uclibc}/lib/libresolv.a", "${stripshared}");
+ genSO("${root}/lib/libcrypt.so.0", "${uclibc}/lib/libcrypt.a", "${stripshared}");
+ genSO("${root}/lib/libm.so.0", "${uclibc}/lib/libm.a");
+-genSO("${root}/lib/libpthread.so.0", "${uclibc}/lib/libpthread.a", "${stripshared}", "-u pthread_mutexattr_init -Wl,-init=__pthread_initialize_minimal_internal");
++#genSO("${root}/lib/libpthread.so.0", "${uclibc}/lib/libpthread.a", "${stripshared}", "-u pthread_mutexattr_init -Wl,-init=__pthread_initialize_minimal_internal");
++genSO("${root}/lib/libpthread.so.0", "${uclibc}/lib/libpthread_so.a", "${stripshared}", "-u pthread_mutexattr_init -Wl,-init=__pthread_initialize_minimal_internal");
+ genSO("${root}/lib/libutil.so.0", "${uclibc}/lib/libutil.a", "${stripshared}");
+ #  genSO("${root}/lib/libdl.so.0", "${uclibc}/lib/libdl.a", "${stripshared}");
+ #  genSO("${root}/lib/libnsl.so.0", "${uclibc}/lib/libnsl.a", "${stripshared}");
+diff --git a/release/src/router/libbcmcrypto/Makefile b/release/src/router/libbcmcrypto/Makefile
+index 4d79fde..ca5d3cc 100644
+--- a/release/src/router/libbcmcrypto/Makefile
++++ b/release/src/router/libbcmcrypto/Makefile
+@@ -16,7 +16,7 @@ include ../common.mak
+ 
+ CFLAGS	+= -Wsign-compare -I. -I../httpd -I$(SRCBASE)/include -Wall
+ #CFLAGS	+= -g -DDEBUG
+-CFLAGS	+= -s -O2 $(EXTRACFLAGS)
++CFLAGS	+= -s -O2 -fPIC $(EXTRACFLAGS)
+ LDFLAGS += -L.
+ 
+ vpath %.c $(SRCBASE)/bcmcrypto
+diff --git a/toolchain/build26.sh b/toolchain/build26.sh
+index 04f52bd..5a94466 100755
+--- a/toolchain/build26.sh
++++ b/toolchain/build26.sh
+@@ -2,7 +2,7 @@
+ #                         Toolchain Build Script                        #
+ #########################################################################
+ 
+-GCCVER=4.2.4
++GCCVER=4.4.6
+ 
+ ROOTDIR=$PWD
+ TARGETDIR=hndtools-mipsel-uclibc-${GCCVER}
+diff --git a/toolchain/config.2.6-4.2.4 b/toolchain/config.2.6-4.2.4
+index 8aad1ad..c0a03d3 100644
+--- a/toolchain/config.2.6-4.2.4
++++ b/toolchain/config.2.6-4.2.4
+@@ -44,7 +44,7 @@ CONFIG_UCLIBC_EXTRA_VERSION=".1"
+ # CONFIG_GDB is not set
+ CONFIG_LARGEFILE=y
+ CONFIG_SHADOW_PASSWORDS=y
+-CONFIG_TARGET_OPTIMIZATION="-Os -pipe -mips32 -mtune=mips32 -funit-at-a-time"
++CONFIG_TARGET_OPTIMIZATION="-Os -pipe -mips32r2 -mtune=mips32r2 -funit-at-a-time"
+ CONFIG_GCC_VERSION="4.2.4"
+ CONFIG_UCLIBC_VERSION="0.9.30"
+ CONFIG_BUILDSYSTEM_SETTINGS=y
+diff --git a/toolchain/config.2.6-4.4.6 b/toolchain/config.2.6-4.4.6
+index cbc2742..2e8bd3e 100644
+--- a/toolchain/config.2.6-4.4.6
++++ b/toolchain/config.2.6-4.4.6
+@@ -44,7 +44,7 @@ CONFIG_UCLIBC_EXTRA_VERSION=".1"
+ # CONFIG_GDB is not set
+ CONFIG_LARGEFILE=y
+ CONFIG_SHADOW_PASSWORDS=y
+-CONFIG_TARGET_OPTIMIZATION="-Os -mshared -pipe -march=74kc -mtune=74kc -funit-at-a-time"
++CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=74kc -mtune=74kc -funit-at-a-time"
+ CONFIG_GCC_VERSION="4.4.6"
+ CONFIG_UCLIBC_VERSION="0.9.30"
+ CONFIG_BUILDSYSTEM_SETTINGS=y
+-- 
+2.1.2
+

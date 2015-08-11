@@ -1,0 +1,27 @@
+From 039a03d77e1e896d356cf3b12adca1d719a1b338 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 9 Oct 2014 22:40:49 -0400
+Subject: [PATCH 05/26] when mtd update error or update finish, mtd should be
+ set idle
+
+---
+ release/src/router/rc/mtd.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/release/src/router/rc/mtd.c b/release/src/router/rc/mtd.c
+index 4cdac73..bbeebef 100644
+--- a/release/src/router/rc/mtd.c
++++ b/release/src/router/rc/mtd.c
+@@ -623,9 +623,7 @@ ERROR:
+ 
+ 	crc_done();
+ 
+-#ifdef DEBUG_SIMULATE
+ 	set_action(ACT_IDLE);
+-#endif
+ 
+ 	printf("%s\n",  error ? error : "Image successfully flashed");
+ 	_dprintf("%s\n",  error ? error : "Image successfully flashed");
+-- 
+2.1.2
+

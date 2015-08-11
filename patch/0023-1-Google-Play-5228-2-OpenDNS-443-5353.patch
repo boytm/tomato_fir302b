@@ -1,0 +1,149 @@
+From 1b071868b13a68bea963a531363f8d9fbd10aedb Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Tue, 7 Apr 2015 22:43:46 +0800
+Subject: [PATCH 23/26] =?UTF-8?q?1)=20=E5=A2=9E=E5=8A=A0=20Google=20Play?=
+ =?UTF-8?q?=20=E7=9A=84=E7=AB=AF=E5=8F=A35228=EF=BC=9B2)=20OpenDNS=20443?=
+ =?UTF-8?q?=E7=AB=AF=E5=8F=A3=E6=97=A0=E6=B3=95=E8=AE=BF=E9=97=AE=E6=8D=A2?=
+ =?UTF-8?q?5353?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../src/router/rom/rom/etc/dnsmasq_gfwlist.conf    | 71 +++++++++++-----------
+ release/src/router/rom/rom/etc/route_us.sh         | 15 +++--
+ 2 files changed, 46 insertions(+), 40 deletions(-)
+
+diff --git a/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+index e42c353..d2e214b 100644
+--- a/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
++++ b/release/src/router/rom/rom/etc/dnsmasq_gfwlist.conf
+@@ -1,52 +1,53 @@
+ #Google and Youtube
+-server=/google.com/208.67.222.222#443
+-server=/google.com.hk/208.67.222.222#443
+-server=/gstatic.com/208.67.222.222#443
+-server=/ggpht.com/208.67.222.222#443
+-server=/googleusercontent.com/208.67.222.222#443
+-server=/appspot.com/208.67.222.222#443
+-server=/googlecode.com/208.67.222.222#443
+-server=/googleapis.com/208.67.222.222#443
+-server=/gmail.com/208.67.222.222#443
+-server=/google-analytics.com/208.67.222.222#443
+-server=/youtube.com/208.67.222.222#443
+-server=/googlevideo.com/208.67.222.222#443
+-server=/youtube-nocookie.com/208.67.222.222#443
+-server=/ytimg.com/208.67.222.222#443
+-server=/blogspot.com/208.67.222.222#443
+-server=/blogger.com/208.67.222.222#443
++server=/google.com/208.67.222.222#5353
++server=/google.com.hk/208.67.222.222#5353
++server=/gstatic.com/208.67.222.222#5353
++server=/ggpht.com/208.67.222.222#5353
++server=/googleusercontent.com/208.67.222.222#5353
++server=/android.com/208.67.222.222#5353
++server=/appspot.com/208.67.222.222#5353
++server=/googlecode.com/208.67.222.222#5353
++server=/googleapis.com/208.67.222.222#5353
++server=/gmail.com/208.67.222.222#5353
++server=/google-analytics.com/208.67.222.222#5353
++server=/youtube.com/208.67.222.222#5353
++server=/googlevideo.com/208.67.222.222#5353
++server=/youtube-nocookie.com/208.67.222.222#5353
++server=/ytimg.com/208.67.222.222#5353
++server=/blogspot.com/208.67.222.222#5353
++server=/blogger.com/208.67.222.222#5353
+ 
+ #FaceBook
+-server=/facebook.com/208.67.222.222#443
+-server=/thefacebook.com/208.67.222.222#443
+-server=/facebook.net/208.67.222.222#443
+-server=/fbcdn.net/208.67.222.222#443
+-server=/akamaihd.net/208.67.222.222#443
+-server=/instagram.com/208.67.222.222#443
++server=/facebook.com/208.67.222.222#5353
++server=/thefacebook.com/208.67.222.222#5353
++server=/facebook.net/208.67.222.222#5353
++server=/fbcdn.net/208.67.222.222#5353
++server=/akamaihd.net/208.67.222.222#5353
++server=/instagram.com/208.67.222.222#5353
+ 
+ #Twitter
+-server=/twitter.com/208.67.222.222#443
+-server=/t.co/208.67.222.222#443
+-server=/bitly.com/208.67.222.222#443
+-server=/twimg.com/208.67.222.222#443
+-server=/tinypic.com/208.67.222.222#443
+-server=/yfrog.com/208.67.222.222#443
++server=/twitter.com/208.67.222.222#5353
++server=/t.co/208.67.222.222#5353
++server=/bitly.com/208.67.222.222#5353
++server=/twimg.com/208.67.222.222#5353
++server=/tinypic.com/208.67.222.222#5353
++server=/yfrog.com/208.67.222.222#5353
+ 
+ #Dropbox
+-server=/dropbox.com/208.67.222.222#443
++server=/dropbox.com/208.67.222.222#5353
+ 
+ #1024
+-server=/t66y.com/208.67.222.222#443
++server=/t66y.com/208.67.222.222#5353
+ 
+ #shadowsocks fqrouter
+-server=/shadowsocks.org/208.67.222.222#443
+-server=/fqrouter.com/208.67.222.222#443
++server=/shadowsocks.org/208.67.222.222#5353
++server=/fqrouter.com/208.67.222.222#5353
+ 
+ #btdigg
+-server=/btdigg.org/208.67.222.222#443
++server=/btdigg.org/208.67.222.222#5353
+ 
+ #sf.net
+-server=/sourceforge.net/208.67.222.222#443
++server=/sourceforge.net/208.67.222.222#5353
+ 
+ #feedly
+-server=/feedly.com/208.67.222.222#443
++server=/feedly.com/208.67.222.222#5353
+diff --git a/release/src/router/rom/rom/etc/route_us.sh b/release/src/router/rom/rom/etc/route_us.sh
+index b499801..5fd1e65 100755
+--- a/release/src/router/rom/rom/etc/route_us.sh
++++ b/release/src/router/rom/rom/etc/route_us.sh
+@@ -9,14 +9,18 @@ lan=`nvram get lan_ifname`
+ modprobe ipt_set
+ table=" table 8 "
+ 
+-# 993 Gmail IMAP port
+-# 465 Gmail SMTP port
++# 465 TCP Gmail SMTP port
++# 993 TCP Gmail IMAP port
++# 5228 TCP/UDP Google Play port
++tcp_dest_ports="80,443,993,5228"
++udp_dest_ports="5228"
+ 
+ case $action in
+ add)
+ 	ip route replace $table default dev $vpn
+-	#iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443 -j MARK --set-mark 0xffff 
+-	iptables -t mangle -A PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443,993 -j MARK --set-mark 0xffff
++	# delete again before add?
++	iptables -t mangle -A PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports ${tcp_dest_ports} -j MARK --set-mark 0xffff
++	iptables -t mangle -A PREROUTING -i ${lan} -p udp ! -d 192.168.0.0/16 -m multiport --dports ${udp_dest_ports} -j MARK --set-mark 0xffff
+ 	ip rule add fwmark 0xffff $table priority 1
+ 
+         echo 0 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
+@@ -25,7 +29,8 @@ del)
+         echo 1 > /proc/sys/net/ipv4/conf/${vpn}/rp_filter
+ 
+ 	ip rule del fwmark 0xffff $table priority 1
+-	iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports 80,443,993 -j MARK --set-mark 0xffff 
++	iptables -t mangle -D PREROUTING -i ${lan} -p tcp ! -d 192.168.0.0/16 -m multiport --dports ${tcp_dest_ports} -j MARK --set-mark 0xffff 
++	iptables -t mangle -D PREROUTING -i ${lan} -p udp ! -d 192.168.0.0/16 -m multiport --dports ${udp_dest_ports} -j MARK --set-mark 0xffff
+ 	ip route replace $table default dev $net
+ ;;
+ *)
+-- 
+2.1.2
+

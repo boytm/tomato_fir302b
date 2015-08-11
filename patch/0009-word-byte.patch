@@ -1,0 +1,54 @@
+From 41359f77389aa4d3c13d18260b2a9b9ee4004273 Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Fri, 10 Oct 2014 04:59:58 -0400
+Subject: [PATCH 09/26] =?UTF-8?q?=E4=BD=BF=E7=94=A8=E5=A4=84=E7=90=86?=
+ =?UTF-8?q?=E5=99=A8=20word=20=E7=B1=BB=E5=9E=8B=E4=BB=A3=E6=9B=BF=20byte?=
+ =?UTF-8?q?=20=E4=BB=A5=E6=8F=90=E9=AB=98=E6=80=A7=E8=83=BD?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src-rt/linux/linux-2.6/crypto/arc4.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/release/src-rt/linux/linux-2.6/crypto/arc4.c b/release/src-rt/linux/linux-2.6/crypto/arc4.c
+index 46c2ec9..efc5659 100644
+--- a/release/src-rt/linux/linux-2.6/crypto/arc4.c
++++ b/release/src-rt/linux/linux-2.6/crypto/arc4.c
+@@ -22,8 +22,8 @@
+ #define ARC4_BLOCK_SIZE		1
+ 
+ struct arc4_ctx {
+-	u8 S[256];
+-	u8 x, y;
++	u32 S[256];
++	u32 x, y;
+ };
+ 
+ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+@@ -40,7 +40,7 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+ 
+ 	for(i = 0; i < 256; i++)
+ 	{
+-		u8 a = ctx->S[i];
++		u32 a = ctx->S[i];
+ 		j = (j + in_key[k] + a) & 0xff;
+ 		ctx->S[i] = ctx->S[j];
+ 		ctx->S[j] = a;
+@@ -54,9 +54,9 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+ static void arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in,
+ 		       unsigned int len)
+ {
+- 	u8 *const S = ctx->S;
+-	u8 x, y, a, b;
+-	u8 ty, ta, tb;
++	u32 *const S = ctx->S;
++	u32 x, y, a, b;
++	u32 ty, ta, tb;
+ 
+ 	if (len == 0)
+ 		return;
+-- 
+2.1.2
+

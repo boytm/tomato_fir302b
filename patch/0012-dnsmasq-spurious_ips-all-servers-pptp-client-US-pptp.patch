@@ -1,0 +1,278 @@
+From 38bfc0f8c165dead3d32d3a06889bc99d61a809f Mon Sep 17 00:00:00 2001
+From: Jesse <boycht@gmail.com>
+Date: Thu, 23 Oct 2014 09:27:53 -0400
+Subject: [PATCH 12/26] =?UTF-8?q?dnsmasq=20=E5=A2=9E=E5=8A=A0=20spurious?=
+ =?UTF-8?q?=5Fips=20=E8=BF=87=E6=BB=A4=E5=90=8D=E5=8D=95=EF=BC=8C=E5=B9=B6?=
+ =?UTF-8?q?=E5=90=AF=E7=94=A8=20all-servers=20=E9=80=89=E9=A1=B9=EF=BC=9B?=
+ =?UTF-8?q?=E5=B9=B6=E5=9C=A8=20pptp=20client=20=E5=90=AF=E5=8A=A8?=
+ =?UTF-8?q?=E6=97=B6=E5=80=99=E9=87=8D=E5=AE=9A=E5=90=91=20US=20=E7=9A=84?=
+ =?UTF-8?q?=E6=B5=81=E9=87=8F=E8=B5=B0=20pptp=E3=80=82?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ release/src/router/rc/pptp_client.c              |   4 +-
+ release/src/router/rc/services.c                 |   6 ++
+ release/src/router/rc/vpn/ip-down                |   4 +-
+ release/src/router/rc/vpn/ip-up                  |  11 ++
+ release/src/router/rom/rom/etc/route_us.sh       | 126 +++++++++++++++++++++++
+ release/src/router/rom/rom/etc/spurious_ips.conf |  38 +++++++
+ 6 files changed, 187 insertions(+), 2 deletions(-)
+ create mode 100755 release/src/router/rom/rom/etc/route_us.sh
+ create mode 100644 release/src/router/rom/rom/etc/spurious_ips.conf
+
+diff --git a/release/src/router/rc/pptp_client.c b/release/src/router/rc/pptp_client.c
+index 58190b1..320a3f3 100644
+--- a/release/src/router/rc/pptp_client.c
++++ b/release/src/router/rc/pptp_client.c
+@@ -118,7 +118,9 @@ void start_pptp_client(void)
+                 fprintf(fd, "require-mppe-128\n");
+                 break;
+             case 3:
+-                fprintf(fd, "require-mppe\n");
++                fprintf(fd, "require-mppe-40\n");
++                fprintf(fd, "require-mppe-56\n");
++                fprintf(fd, "require-mppe-128\n");
+                 break;
+             default:
+                 break;
+diff --git a/release/src/router/rc/services.c b/release/src/router/rc/services.c
+index 67b8b33..40d3cf1 100644
+--- a/release/src/router/rc/services.c
++++ b/release/src/router/rc/services.c
+@@ -153,6 +153,12 @@ void start_dnsmasq()
+ 	}
+ #endif
+ 
++//#ifdef TCONFIG_GFW
++	fprintf(f,
++		"spurious-ip-file=/etc/spurious_ips.conf\n"
++		"all-servers\n");
++//#endif
++
+ 	for (n = 0 ; n < dns->count; ++n) {
+ 		if (dns->dns[n].port != 53) {
+ 			fprintf(f, "server=%s#%u\n", inet_ntoa(dns->dns[n].addr), dns->dns[n].port);
+diff --git a/release/src/router/rc/vpn/ip-down b/release/src/router/rc/vpn/ip-down
+index 067acd6..c21c5f8 100644
+--- a/release/src/router/rc/vpn/ip-down
++++ b/release/src/router/rc/vpn/ip-down
+@@ -20,7 +20,9 @@ case "$6" in
+       /usr/sbin/iptables --table nat -D POSTROUTING --out-interface $1 --jump MASQUERADE
+   fi
+   /sbin/service dnsmasq restart
++  # restore route table
++  /etc/route_us.sh del $1
+   ;;
+  *)
+ esac   
+-exit 0 
+\ No newline at end of file
++exit 0 
+diff --git a/release/src/router/rc/vpn/ip-up b/release/src/router/rc/vpn/ip-up
+index 0a721d5..960e767 100644
+--- a/release/src/router/rc/vpn/ip-up
++++ b/release/src/router/rc/vpn/ip-up
+@@ -1,4 +1,13 @@
+ #!/bin/sh
++# When the ppp link comes up, this script is called with the following
++# parameters
++#       $1      the interface name used by pppd (e.g. ppp3)
++#       $2      the tty device name
++#       $3      the tty device speed
++#       $4      the local IP address for the interface
++#       $5      the remote IP address
++#       $6      the parameter specified by the 'ipparam' option to pppd
++#
+ DEFAULTROUTE=$(/bin/nvram get pptp_client_dfltroute)
+ REMOTESUB=$(/bin/nvram get pptp_client_srvsub)
+ REMOTENET=$(/bin/nvram get pptp_client_srvsubmsk)
+@@ -20,6 +29,8 @@ case "$6" in
+       /usr/sbin/iptables --table nat --append POSTROUTING --out-interface $1 --jump MASQUERADE
+   fi
+   /sbin/service dnsmasq restart
++  # redirect US traffic
++  /etc/route_us.sh add $1
+   ;;
+  *)
+ esac
+diff --git a/release/src/router/rom/rom/etc/route_us.sh b/release/src/router/rom/rom/etc/route_us.sh
+new file mode 100755
+index 0000000..02bf76a
+--- /dev/null
++++ b/release/src/router/rom/rom/etc/route_us.sh
+@@ -0,0 +1,126 @@
++#/bin/sh
++
++action=$1
++
++vpn=$2
++net=ppp0
++
++case $action in
++add)
++	ip route change default dev $vpn
++;;
++del)
++	ip route change default dev $net
++;;
++*)
++	echo "Unkown action: $action" >&2
++	exit 1
++;;
++esac
++
++
++#ip route change default dev $vpn
++ip route $action 0.0.0.0/7 dev $net
++ip route $action 14.0.0.0/8 dev $net
++ip route $action 27.0.0.0/8 dev $net
++ip route $action 36.0.0.0/8 dev $net
++ip route $action 39.0.0.0/8 dev $net
++ip route $action 42.0.0.0/7 dev $net
++ip route $action 45.64.0.0/10 dev $net
++ip route $action 49.0.0.0/8 dev $net
++ip route $action 54.222.0.0/15 dev $net
++ip route $action 58.0.0.0/7 dev $net
++ip route $action 60.0.0.0/7 dev $net
++ip route $action 60.254.0.0/16 dev $vpn
++ip route $action 91.232.0.0/13 dev $net
++ip route $action 101.0.0.0/8 dev $net
++ip route $action 102.0.0.0/7 dev $net
++ip route $action 103.246.192.0/18 dev $vpn
++ip route $action 106.0.0.0/8 dev $net
++ip route $action 110.0.0.0/7 dev $net
++ip route $action 112.0.0.0/4 dev $net
++ip route $action 113.28.0.0/15 dev $vpn
++ip route $action 139.0.0.0/12 dev $net
++ip route $action 139.128.0.0/15 dev $net
++ip route $action 139.148.0.0/15 dev $net
++ip route $action 139.152.0.0/13 dev $net
++ip route $action 139.170.0.0/16 dev $net
++ip route $action 139.176.0.0/16 dev $net
++ip route $action 139.183.0.0/16 dev $net
++ip route $action 139.186.0.0/16 dev $net
++ip route $action 139.188.0.0/14 dev $net
++ip route $action 139.192.0.0/11 dev $net
++ip route $action 139.224.0.0/16 dev $net
++ip route $action 139.226.0.0/15 dev $net
++ip route $action 140.75.0.0/16 dev $net
++ip route $action 140.143.0.0/16 dev $net
++ip route $action 140.205.0.0/16 dev $net
++ip route $action 140.206.0.0/15 dev $net
++ip route $action 140.210.0.0/16 dev $net
++ip route $action 140.224.0.0/16 dev $net
++ip route $action 140.237.0.0/16 dev $net
++ip route $action 140.240.0.0/16 dev $net
++ip route $action 140.243.0.0/16 dev $net
++ip route $action 140.246.0.0/16 dev $net
++ip route $action 140.249.0.0/16 dev $net
++ip route $action 140.250.0.0/16 dev $net
++ip route $action 140.255.0.0/16 dev $net
++ip route $action 144.0.0.0/15 dev $net
++ip route $action 144.6.0.0/15 dev $net
++ip route $action 144.12.0.0/16 dev $net
++ip route $action 144.52.0.0/14 dev $net
++ip route $action 144.122.0.0/15 dev $net
++ip route $action 144.255.0.0/16 dev $net
++ip route $action 150.0.0.0/10 dev $net
++ip route $action 150.115.0.0/16 dev $net
++ip route $action 150.121.0.0/16 dev $net
++ip route $action 150.122.0.0/16 dev $net
++ip route $action 150.128.0.0/15 dev $net
++ip route $action 150.138.0.0/15 dev $net
++ip route $action 150.223.0.0/16 dev $net
++ip route $action 150.242.0.0/16 dev $net
++ip route $action 150.254.0.0/15 dev $net
++ip route $action 152.104.0.0/13 dev $net
++ip route $action 153.0.0.0/15 dev $net
++ip route $action 153.3.0.0/16 dev $net
++ip route $action 153.34.0.0/15 dev $net
++ip route $action 153.36.0.0/15 dev $net
++ip route $action 153.96.0.0/14 dev $net
++ip route $action 153.100.0.0/15 dev $net
++ip route $action 153.118.0.0/15 dev $net
++ip route $action 157.0.0.0/12 dev $net
++ip route $action 157.16.0.0/14 dev $net
++ip route $action 157.61.0.0/16 dev $net
++ip route $action 157.122.0.0/16 dev $net
++ip route $action 157.148.0.0/16 dev $net
++ip route $action 157.156.0.0/14 dev $net
++ip route $action 157.255.0.0/16 dev $net
++ip route $action 159.226.0.0/16 dev $net
++ip route $action 161.207.0.0/16 dev $net
++ip route $action 162.105.0.0/16 dev $net
++ip route $action 163.0.0.0/15 dev $net
++ip route $action 163.44.0.0/14 dev $net
++ip route $action 163.48.0.0/12 dev $net
++ip route $action 163.125.0.0/16 dev $net
++ip route $action 163.136.0.0/13 dev $net
++ip route $action 163.177.0.0/16 dev $net
++ip route $action 163.178.0.0/15 dev $net
++ip route $action 163.204.0.0/16 dev $net
++ip route $action 166.110.0.0/15 dev $net
++ip route $action 167.139.0.0/16 dev $net
++ip route $action 167.189.0.0/16 dev $net
++ip route $action 168.160.0.0/16 dev $net
++ip route $action 171.0.0.0/9 dev $net
++ip route $action 171.64.0.0/12 dev $vpn
++ip route $action 171.208.0.0/12 dev $net
++ip route $action 175.0.0.0/8 dev $net
++ip route $action 180.0.0.0/6 dev $net
++ip route $action 192.124.154.0/23 dev $net
++ip route $action 192.188.168.0/22 dev $net
++ip route $action 202.0.0.0/7 dev $net
++ip route $action 202.72.96.0/19 dev $vpn
++ip route $action 203.144.0.0/18 dev $vpn
++ip route $action 203.187.128.0/19 dev $vpn
++ip route $action 210.0.0.0/7 dev $net
++ip route $action 218.0.0.0/7 dev $net
++ip route $action 220.0.0.0/6 dev $net
+diff --git a/release/src/router/rom/rom/etc/spurious_ips.conf b/release/src/router/rom/rom/etc/spurious_ips.conf
+new file mode 100644
+index 0000000..c711685
+--- /dev/null
++++ b/release/src/router/rom/rom/etc/spurious_ips.conf
+@@ -0,0 +1,38 @@
++74.125.127.102
++74.125.155.102
++74.125.39.102
++74.125.39.113
++209.85.229.138
++128.121.126.139
++159.106.121.75
++169.132.13.103
++192.67.198.6
++202.106.1.2
++202.181.7.85
++203.161.230.171
++203.98.7.65
++207.12.88.98
++208.56.31.43
++209.145.54.50
++209.220.30.174
++209.36.73.33
++211.94.66.147
++213.169.251.35
++216.221.188.182
++216.234.179.13
++243.185.187.39
++37.61.54.158
++4.36.66.178
++46.82.174.68
++59.24.3.173
++64.33.88.161
++64.33.99.47
++64.66.163.251
++65.104.202.252
++65.160.219.113
++66.45.252.237
++72.14.205.104
++72.14.205.99
++78.16.49.15
++8.7.198.45
++93.46.8.89
+-- 
+2.1.2
+
